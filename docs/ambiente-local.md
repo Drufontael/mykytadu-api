@@ -1,7 +1,7 @@
 # MykytaDu API — Ambiente local
 
 > **Status:** configuração inicial da B-1
-> **Versão:** 0.2
+> **Versão:** 0.3
 > **Data de referência:** 4 de setembro de 2026
 
 ## 1. Pré-requisitos
@@ -37,6 +37,30 @@ docker compose up -d --wait postgres
 ```
 
 ## 3. Ciclo de uso
+
+### 3.1 Aplicação
+
+As configurações são separadas por finalidade técnica:
+
+| Arquivo | Finalidade | Banco |
+| --- | --- | --- |
+| `application.yaml` | políticas comuns a todos os ambientes | não contém credenciais e não inicia Compose |
+| `application-local.yaml` | execução no computador do desenvolvedor | PostgreSQL do `compose.yaml`, com valores locais sobrescrevíveis por ambiente |
+| `application-test.yaml` | testes de contexto que não exercem persistência | desabilita Compose e auto-configurações de banco; integração real será coberta por Testcontainers |
+
+Iniciar a aplicação local com o profile explícito:
+
+```powershell
+.\gradlew.bat bootRun --args="--spring.profiles.active=local"
+```
+
+O profile `local` mantém o container em execução ao encerrar a aplicação (`start-only`). As variáveis opcionais `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER` e `POSTGRES_PASSWORD` permitem sobrescrever somente os valores locais. Não armazenar segredos de ambientes remotos nesses arquivos.
+
+O profile `test` é ativado nos testes que não precisam de persistência. Testes de integração com banco devem usar a configuração de Testcontainers prevista na B-1-T07, sem reutilizar o banco local nem o estado de outro teste.
+
+Sem o profile `local`, a aplicação exige `MYKYTADU_DATABASE_URL`, `MYKYTADU_DATABASE_USERNAME` e `MYKYTADU_DATABASE_PASSWORD`. Os placeholders não possuem valores padrão: uma variável ausente interrompe a inicialização e identifica nominalmente a configuração faltante. Segredos devem ser injetados pelo ambiente de execução, nunca versionados.
+
+### 3.2 Banco isolado
 
 Validar a configuração resolvida:
 

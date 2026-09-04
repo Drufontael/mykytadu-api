@@ -1,9 +1,13 @@
 spring:
   application:
     name: mykytadu-api
+  docker:
+    compose:
+      enabled: false
   flyway:
     sql-migration-separator: "-"
     validate-migration-naming: true
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: validate

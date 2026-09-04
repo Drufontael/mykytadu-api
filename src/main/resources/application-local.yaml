@@ -1,0 +1,12 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/${POSTGRES_DB:mykytadu}
+    username: ${POSTGRES_USER:mykytadu}
+    password: ${POSTGRES_PASSWORD:mykytadu-local}
+  docker:
+    compose:
+      enabled: true
+      lifecycle-management: start-only
