@@ -118,7 +118,7 @@ A tradução é a candidata mais provável à futura extração, pois pode apres
 | Linguagem | Kotlin/JVM | 2.4.10 | Versão estável atual; linguagem alinhada ao cliente, sem tentar compartilhar código de domínio entre plataformas à força |
 | JVM | Java | 25 LTS | Baseline LTS para projeto novo; toolchain fixa builds locais e CI |
 | Framework | Spring Boot | 4.1.1 | Linha estável atual, adequada a projeto greenfield |
-| Build | Gradle + Kotlin DSL | wrapper versionado | Coerência com o frontend e build reproduzível |
+| Build | Gradle + Kotlin DSL | 9.5.0, wrapper versionado | Versão integralmente suportada pelo Kotlin 2.4.10, compatível com Java 25 e Spring Boot 4.1.1 |
 | API | Spring MVC | gerenciado pelo Boot | Modelo simples e adequado ao acesso bloqueante via JPA; não adotar WebFlux sem carga que o justifique |
 | Segurança | Spring Security + OAuth2 Resource Server/JOSE | gerenciado pelo Boot | Filtros, hash de senha, validação JWT e autorização |
 | Modularidade | Spring Modulith | linha compatível com Boot 4.1 | Verificação das fronteiras e documentação dos módulos |
