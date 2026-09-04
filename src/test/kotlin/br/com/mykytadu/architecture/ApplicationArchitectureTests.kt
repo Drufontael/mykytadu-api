@@ -2,10 +2,9 @@ package br.com.mykytadu.architecture
 
 import br.com.mykytadu.MykytaduApiApplication
 import com.tngtech.archunit.core.importer.ImportOption
-import kotlin.test.Test
-import kotlin.test.assertContains
-import kotlin.test.assertEquals
-import kotlin.test.assertFails
+import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.catchThrowable
+import org.junit.jupiter.api.Test
 import org.springframework.modulith.core.ApplicationModules
 
 class ApplicationArchitectureTests {
@@ -19,10 +18,8 @@ class ApplicationArchitectureTests {
             .toList()
             .toSet()
 
-        assertEquals(
-            setOf("app", "api", "identity", "shared", "translation"),
-            discoveredModules,
-        )
+        assertThat(discoveredModules)
+            .containsExactlyInAnyOrder("app", "api", "identity", "shared", "translation")
     }
 
     @Test
@@ -37,10 +34,10 @@ class ApplicationArchitectureTests {
             ImportOption.OnlyIncludeTests(),
         )
 
-        val violation = assertFails {
+        val violation = catchThrowable {
             invalidModules.verify()
         }
 
-        assertContains(violation.message.orEmpty(), "forbidden")
+        assertThat(violation).hasMessageContaining("forbidden")
     }
 }

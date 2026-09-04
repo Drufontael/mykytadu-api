@@ -1,7 +1,7 @@
 # MykytaDu API — Política e inventário de dependências
 
-> **Status:** baseline revisado na B-1-T02
-> **Versão:** 0.1
+> **Status:** vigente
+> **Versão:** 0.2
 > **Data de referência:** 4 de setembro de 2026
 
 ## 1. Objetivo
@@ -46,14 +46,15 @@ O `springdoc` permanece porque o contrato OpenAPI é uma entrega imediata da B0.
 | --- | --- |
 | starters de teste Actuator, JPA, Flyway, Web MVC e Resource Server | suporte focado às capacidades de produção selecionadas |
 | `spring-security-test` | autenticação e autorização nos testes |
-| `kotlin-test-junit5` | integração das asserções Kotlin com JUnit 5 no baseline atual |
+| `assertj-core` | API principal de assertions; versão gerenciada pelo Spring Boot |
+| `mockk` | doubles e verificação de interações idiomáticos para Kotlin; versão explícita 1.14.11 |
 | `spring-modulith-starter-test` | verificação, documentação e testes isolados de módulos |
 | `spring-boot-testcontainers` | cria conexões de serviço do Spring a partir dos containers de teste |
 | `testcontainers-junit-jupiter` | controla o ciclo de vida dos containers com JUnit 5 |
 | `testcontainers-postgresql` | fornece PostgreSQL real e efêmero para testes de integração |
 | `junit-platform-launcher` | execução dos testes na plataforma JUnit |
 
-A escolha final de assertions e mocks pertence à B-1-T08. Até lá, não se adiciona MockK, Kotest ou uma segunda convenção.
+AssertJ e MockK são a convenção aprovada na B-1-T08. As regras de uso e os limites estão em [Estratégia de testes](testes.md).
 
 ## 5. Removidas na B-1-T02
 
@@ -70,7 +71,6 @@ A escolha final de assertions e mocks pertence à B-1-T08. Até lá, não se adi
 
 | Capacidade | Candidatas | Tarefa de decisão/adoção |
 | --- | --- | --- |
-| assertions e mocks | AssertJ/MockK ou alternativa aprovada | B-1-T08 |
 | análise e cobertura | Detekt, ktlint e Kover | B-1-T09 |
 | provedor HTTP simulado | WireMock ou MockWebServer | B3.1 |
 | observabilidade modular | `spring-modulith-starter-insight` ou artefatos individuais | B-1-T12, conforme necessidade demonstrada |

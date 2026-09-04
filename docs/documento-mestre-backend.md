@@ -152,7 +152,7 @@ As versões acima foram verificadas nas fontes oficiais em 04/09/2026. Kotlin 2.
 ### 4.3 Testes e qualidade
 
 - JUnit 5;
-- Kotest Assertions **ou** AssertJ, escolhendo apenas um estilo principal;
+- AssertJ como estilo principal de assertions;
 - MockK para doubles em Kotlin;
 - Spring Boot Test;
 - Testcontainers para PostgreSQL e testes de integração;
