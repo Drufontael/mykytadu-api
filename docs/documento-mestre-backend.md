@@ -231,6 +231,8 @@ Usar uma única instância PostgreSQL e separar ownership por schemas lógicos:
 - `translation`: cache e registro técnico de consumo;
 - `public` deve permanecer vazio ou conter apenas extensões controladas.
 
+Migrations Flyway versionadas seguem `VyyyyMMddHHmmss-descricao.sql`, com `localDateTime` de `America/Sao_Paulo`, precisão de segundos e `-` configurado como separador. A descrição usa `snake_case`. Antes de criar uma migration, deve-se conferir a maior versão existente; scripts já aplicados não são editados e correções avançam o schema por uma nova migration.
+
 ### 7.2 Tabelas iniciais
 
 | Schema/tabela | Campos essenciais | Observação |

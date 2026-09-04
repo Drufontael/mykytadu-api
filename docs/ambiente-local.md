@@ -1,7 +1,7 @@
 # MykytaDu API — Ambiente local
 
 > **Status:** configuração inicial da B-1
-> **Versão:** 0.1
+> **Versão:** 0.2
 > **Data de referência:** 4 de setembro de 2026
 
 ## 1. Pré-requisitos
@@ -110,3 +110,29 @@ Não usar comandos com nomes calculados, curingas ou remoção ampla de volumes.
 | container não saudável | executar `docker compose logs postgres` |
 | credenciais antigas após alteração do Compose | o cluster existente preserva os valores da primeira inicialização; avaliar reset local consciente |
 | dados desapareceram | confirmar o mount em `/var/lib/postgresql` e inspecionar o volume nomeado |
+
+## 7. Migrations Flyway
+
+Migrations versionadas usam o horário local de São Paulo com precisão de segundos:
+
+```text
+VyyyyMMddHHmmss-descricao.sql
+```
+
+Exemplo:
+
+```text
+V20260904184904-create_identity_and_translation_schemas.sql
+```
+
+Regras:
+
+- `V` identifica uma migration versionada;
+- `yyyyMMddHHmmss` é um `localDateTime` numérico e ordenável;
+- `-` é o separador configurado em `spring.flyway.sql-migration-separator`;
+- a descrição usa letras minúsculas, palavras separadas por `_` e termina em `.sql`;
+- cada versão precisa ser única;
+- conferir a maior versão existente antes de criar um arquivo;
+- não editar uma migration já aplicada em ambiente permanente;
+- correções usam uma nova migration e avançam o schema;
+- Hibernate valida o modelo, mas não cria nem altera objetos (`ddl-auto: validate`).

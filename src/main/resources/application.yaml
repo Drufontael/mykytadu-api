@@ -1,3 +1,9 @@
 spring:
   application:
     name: mykytadu-api
+  flyway:
+    sql-migration-separator: "-"
+    validate-migration-naming: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
