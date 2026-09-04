@@ -47,6 +47,7 @@ As configurações são separadas por finalidade técnica:
 | `application.yaml` | políticas comuns a todos os ambientes | não contém credenciais e não inicia Compose |
 | `application-local.yaml` | execução no computador do desenvolvedor | PostgreSQL do `compose.yaml`, com valores locais sobrescrevíveis por ambiente |
 | `application-test.yaml` | testes de contexto que não exercem persistência | desabilita Compose e auto-configurações de banco; integração real será coberta por Testcontainers |
+| `application-integration-test.yaml` | testes de integração | desabilita Compose; a conexão é fornecida dinamicamente pelo Testcontainers |
 
 Iniciar a aplicação local com o profile explícito:
 
@@ -56,9 +57,17 @@ Iniciar a aplicação local com o profile explícito:
 
 O profile `local` mantém o container em execução ao encerrar a aplicação (`start-only`). As variáveis opcionais `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER` e `POSTGRES_PASSWORD` permitem sobrescrever somente os valores locais. Não armazenar segredos de ambientes remotos nesses arquivos.
 
-O profile `test` é ativado nos testes que não precisam de persistência. Testes de integração com banco devem usar a configuração de Testcontainers prevista na B-1-T07, sem reutilizar o banco local nem o estado de outro teste.
+O profile `test` é ativado nos testes que não precisam de persistência. Testes de integração com banco usam `integration-test` e Testcontainers, sem reutilizar o banco local nem o estado de outra execução.
 
-Sem o profile `local`, a aplicação exige `MYKYTADU_DATABASE_URL`, `MYKYTADU_DATABASE_USERNAME` e `MYKYTADU_DATABASE_PASSWORD`. Os placeholders não possuem valores padrão: uma variável ausente interrompe a inicialização e identifica nominalmente a configuração faltante. Segredos devem ser injetados pelo ambiente de execução, nunca versionados.
+Sem os profiles `local`, `test` ou `integration-test`, a aplicação exige `MYKYTADU_DATABASE_URL`, `MYKYTADU_DATABASE_USERNAME` e `MYKYTADU_DATABASE_PASSWORD`. Uma checagem de inicialização sem valores padrão interrompe a aplicação e identifica nominalmente cada variável faltante. Segredos devem ser injetados pelo ambiente de execução, nunca versionados.
+
+Executar somente a prova de integração com PostgreSQL efêmero:
+
+```powershell
+.\gradlew.bat test --tests "br.com.mykytadu.integration.DatabaseMigrationIntegrationTests"
+```
+
+Esse teste requer Docker disponível, inicia a imagem `postgres:18.6-trixie` em porta dinâmica, aplica todas as migrations e descarta o container ao terminar. Ele não usa o serviço nem o volume definidos no `compose.yaml`.
 
 ### 3.2 Banco isolado
 

@@ -8,7 +8,7 @@ import org.springframework.core.env.Environment
 import javax.sql.DataSource
 
 @Configuration(proxyBeanMethods = false)
-@Profile("!local & !test")
+@Profile("!local & !test & !integration-test")
 class DatabaseConfiguration {
 
     @Bean

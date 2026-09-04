@@ -48,6 +48,9 @@ O `springdoc` permanece porque o contrato OpenAPI é uma entrega imediata da B0.
 | `spring-security-test` | autenticação e autorização nos testes |
 | `kotlin-test-junit5` | integração das asserções Kotlin com JUnit 5 no baseline atual |
 | `spring-modulith-starter-test` | verificação, documentação e testes isolados de módulos |
+| `spring-boot-testcontainers` | cria conexões de serviço do Spring a partir dos containers de teste |
+| `testcontainers-junit-jupiter` | controla o ciclo de vida dos containers com JUnit 5 |
+| `testcontainers-postgresql` | fornece PostgreSQL real e efêmero para testes de integração |
 | `junit-platform-launcher` | execução dos testes na plataforma JUnit |
 
 A escolha final de assertions e mocks pertence à B-1-T08. Até lá, não se adiciona MockK, Kotest ou uma segunda convenção.
@@ -67,7 +70,6 @@ A escolha final de assertions e mocks pertence à B-1-T08. Até lá, não se adi
 
 | Capacidade | Candidatas | Tarefa de decisão/adoção |
 | --- | --- | --- |
-| PostgreSQL efêmero | Testcontainers PostgreSQL e integração Spring Boot | B-1-T07 |
 | assertions e mocks | AssertJ/MockK ou alternativa aprovada | B-1-T08 |
 | análise e cobertura | Detekt, ktlint e Kover | B-1-T09 |
 | provedor HTTP simulado | WireMock ou MockWebServer | B3.1 |
