@@ -50,7 +50,7 @@ O roadmap apresenta apenas o estado consolidado. Histórico, evidências, bloque
 
 | Sprint | Estado | Início | Conclusão | Registro |
 | --- | --- | --- | --- | --- |
-| B-1 | **Em andamento** | 2026-09-04 | — | [Prontidão técnica](sprints/B-1.md) |
+| B-1 | **Concluída** | 2026-09-04 | 2026-09-05 | [Prontidão técnica](sprints/B-1.md) |
 | B0.1 | Não iniciada | — | — | a criar no planejamento da sprint |
 | B0.2 | Não iniciada | — | — | a criar no planejamento da sprint |
 | B1.1 | Não iniciada | — | — | a criar no planejamento da sprint |
