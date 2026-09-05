@@ -25,6 +25,7 @@ Este documento registra por que cada grupo de dependências existe, quais capaci
 | Dependência/grupo | Escopo | Responsabilidade | Gestão de versão |
 | --- | --- | --- | --- |
 | `spring-boot-starter-webmvc` | implementação | API HTTP bloqueante, Spring MVC e servidor embarcado | BOM do Spring Boot |
+| `spring-boot-starter-validation` | implementação | Bean Validation na borda HTTP e em configurações validadas | BOM do Spring Boot |
 | `spring-boot-starter-security` | implementação | filtros, autenticação e autorização | BOM do Spring Boot |
 | `spring-boot-starter-security-oauth2-resource-server` | implementação | validação futura de JWT Bearer | BOM do Spring Boot |
 | `spring-boot-starter-data-jpa` | implementação | persistência relacional e Hibernate | BOM do Spring Boot |
