@@ -3,6 +3,7 @@ package br.com.mykytadu.api.security
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.web.SecurityFilterChain
@@ -24,7 +25,14 @@ class SecurityConfiguration {
             .requestCache { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .exceptionHandling { it.authenticationEntryPoint(authenticationEntryPoint) }
-            .authorizeHttpRequests { it.anyRequest().authenticated() }
+            .authorizeHttpRequests {
+                it.requestMatchers(
+                    HttpMethod.GET,
+                    "/actuator/health/liveness",
+                    "/actuator/health/readiness",
+                ).permitAll()
+                it.anyRequest().authenticated()
+            }
 
         return http.build()
     }

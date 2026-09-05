@@ -5,3 +5,6 @@ spring:
   docker:
     compose:
       enabled: false
+  datasource:
+    hikari:
+      connection-timeout: 1000

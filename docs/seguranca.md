@@ -17,17 +17,21 @@ O baseline atual:
 - mantém headers seguros padrão do Spring Security;
 - responde falhas anônimas com `401 application/problem+json` e código `authentication_required`;
 - envia o desafio `WWW-Authenticate: Bearer` nas respostas `401`;
-- não libera Actuator, OpenAPI ou Swagger UI anonimamente.
+- libera anonimamente apenas os probes específicos de liveness e readiness, sem detalhes;
+- não libera o health global, métricas, OpenAPI ou Swagger UI anonimamente.
 
 O mecanismo definitivo de emissão e validação de tokens pertence às sprints de Identity. Até ele existir, não há credencial produtiva capaz de autenticar uma requisição; isso é intencionalmente mais restritivo que criar um usuário ou senha temporários.
 
 ## 2. Superfícies técnicas
 
-Somente o endpoint Actuator `health` está incluído na exposição web, mas continua autenticado. Liveness e readiness serão configurados e terão sua política de acesso decidida na B-1-T12.
+Os endpoints Actuator `health` e `metrics` estão na exposição web. Somente os probes específicos são públicos; o diagnóstico agregado e as métricas continuam autenticados.
 
 | Superfície | Exposição | Acesso anônimo atual |
 | --- | --- | --- |
 | `/actuator/health` | incluída | negado com `401` |
+| `/actuator/health/liveness` | incluída | permitido, sem detalhes |
+| `/actuator/health/readiness` | incluída | permitido, sem detalhes |
+| `/actuator/metrics` | incluída | negado com `401` |
 | demais endpoints Actuator | não incluídos | inexistentes externamente |
 | `/v3/api-docs` | disponível no classpath | negado com `401` |
 | `/swagger-ui/**` | disponível no classpath | negado com `401` |
