@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController
 
 @WebMvcTest(ProblemDetailsFixtureController::class)
 @AutoConfigureMockMvc(addFilters = false)
-@Import(ApiExceptionHandler::class)
+@Import(ApiExceptionHandler::class, ApiProblemFactory::class)
 @ActiveProfiles("test")
 class ApiExceptionHandlerTest(@Autowired private val mockMvc: MockMvc) {
 

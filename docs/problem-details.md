@@ -46,6 +46,7 @@ Exemplo de validação:
 | --- | --- | --- |
 | `request_validation_failed` | 400 | corpo recebido e parseado, mas com campos inválidos |
 | `internal_error` | 500 | falha inesperada sem detalhe interno exposto |
+| `authentication_required` | 401 | credencial válida ausente em uma superfície protegida |
 
 O catálogo de domínio será definido na B0.2 e evoluído junto ao OpenAPI. Não reutilizar `detail`, título ou mensagem de campo como chave de decisão no cliente.
 
@@ -59,6 +60,6 @@ O catálogo de domínio será definido na B0.2 e evoluído junto ao OpenAPI. Nã
 
 ## 4. Limites atuais
 
-O handler MVC cobre validação de corpo e exceções lançadas por controllers. Falhas produzidas na cadeia do Spring Security acontecem antes do MVC e serão adaptadas ao mesmo contrato na B-1-T11.
+O handler MVC cobre validação de corpo e exceções lançadas por controllers. Falhas de autenticação produzidas antes do MVC usam um `AuthenticationEntryPoint` dedicado e o mesmo factory de Problem Details.
 
 Não foram criados endpoints de negócio para esta infraestrutura. Os endpoints sob `/test/problem-details` existem somente como classes privadas no source set de teste.
