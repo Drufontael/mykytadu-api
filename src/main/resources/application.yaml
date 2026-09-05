@@ -11,3 +11,19 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db
+      show-details: never
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
