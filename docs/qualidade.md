@@ -14,6 +14,8 @@
 
 O lifecycle `.\gradlew.bat check` executa os testes, ktlint, Detekt e gera o XML do Kover. Como a suíte inclui Testcontainers, esse comando requer Docker disponível.
 
+O pipeline executa o lifecycle equivalente em Linux, `./gradlew check --no-daemon --stacktrace`, conforme a [documentação de integração contínua](ci.md). Não existe uma sequência alternativa ou um gate reduzido exclusivo do CI.
+
 ## 2. Política
 
 - violações de ktlint e Detekt falham o build;
