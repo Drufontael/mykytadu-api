@@ -9,7 +9,5 @@ import org.springframework.test.context.ActiveProfiles
 class MykytaduApiApplicationTests {
 
     @Test
-    fun contextLoads() {
-    }
-
+    fun contextLoads() = Unit
 }

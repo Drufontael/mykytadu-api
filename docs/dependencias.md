@@ -71,10 +71,19 @@ AssertJ e MockK são a convenção aprovada na B-1-T08. As regras de uso e os li
 
 | Capacidade | Candidatas | Tarefa de decisão/adoção |
 | --- | --- | --- |
-| análise e cobertura | Detekt, ktlint e Kover | B-1-T09 |
 | provedor HTTP simulado | WireMock ou MockWebServer | B3.1 |
 | observabilidade modular | `spring-modulith-starter-insight` ou artefatos individuais | B-1-T12, conforme necessidade demonstrada |
 | persistência de eventos | starter Modulith JDBC/JPA, se houver publicação persistente | sprint do primeiro caso de evento confiável |
+
+## 7. Plugins de qualidade
+
+| Plugin | Versão | Responsabilidade |
+| --- | --- | --- |
+| `org.jlleitschuh.gradle.ktlint` | 14.2.0 | integra ktlint ao Gradle; engine fixada em 1.8.0 |
+| `dev.detekt` | 2.0.0-alpha.6 | análise estática Kotlin; versão alpha explicitamente fixada e validada na matriz atual |
+| `org.jetbrains.kotlinx.kover` | 0.9.8 | instrumentação e relatórios de cobertura JVM |
+
+Política e comandos estão em [Qualidade estática e cobertura](qualidade.md).
 
 ## 7. Verificações mínimas
 

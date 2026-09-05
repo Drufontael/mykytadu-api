@@ -14,9 +14,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @ActiveProfiles("integration-test")
-class DatabaseMigrationIntegrationTests(
-    @Autowired private val jdbcTemplate: JdbcTemplate,
-) {
+class DatabaseMigrationIntegrationTests(@Autowired private val jdbcTemplate: JdbcTemplate) {
 
     @Test
     fun `starts an ephemeral PostgreSQL and applies every migration`() {
@@ -28,35 +26,32 @@ class DatabaseMigrationIntegrationTests(
         assertThat(businessTablesInPublicSchema()).isZero()
     }
 
-    private fun domainSchemas(): Set<String> =
-        jdbcTemplate.queryForList(
-            """
+    private fun domainSchemas(): Set<String> = jdbcTemplate.queryForList(
+        """
             SELECT schema_name
             FROM information_schema.schemata
             WHERE schema_name IN ('identity', 'translation')
-            """.trimIndent(),
-            String::class.java,
-        ).filterNotNull().toSet()
+        """.trimIndent(),
+        String::class.java,
+    ).filterNotNull().toSet()
 
     private fun currentDatabase(): String? =
         jdbcTemplate.queryForObject("SELECT current_database()", String::class.java)
 
-    private fun successfulMigrations(): Int =
-        jdbcTemplate.queryForObject(
-            "SELECT count(*) FROM flyway_schema_history WHERE success",
-            Int::class.java,
-        ) ?: 0
+    private fun successfulMigrations(): Int = jdbcTemplate.queryForObject(
+        "SELECT count(*) FROM flyway_schema_history WHERE success",
+        Int::class.java,
+    ) ?: 0
 
-    private fun businessTablesInPublicSchema(): Int =
-        jdbcTemplate.queryForObject(
-            """
+    private fun businessTablesInPublicSchema(): Int = jdbcTemplate.queryForObject(
+        """
             SELECT count(*)
             FROM information_schema.tables
             WHERE table_schema = 'public'
               AND table_name <> 'flyway_schema_history'
-            """.trimIndent(),
-            Int::class.java,
-        ) ?: 0
+        """.trimIndent(),
+        Int::class.java,
+    ) ?: 0
 
     companion object {
 

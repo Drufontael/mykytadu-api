@@ -4,6 +4,9 @@ plugins {
     id("org.springframework.boot") version "4.1.1"
     id("io.spring.dependency-management") version "1.1.7"
     kotlin("plugin.jpa") version "2.4.10"
+    id("org.jlleitschuh.gradle.ktlint") version "14.2.0"
+    id("dev.detekt") version "2.0.0-alpha.6"
+    id("org.jetbrains.kotlinx.kover") version "0.9.8"
 }
 
 group = "br.com"
@@ -69,6 +72,21 @@ allOpen {
     annotation("jakarta.persistence.Embeddable")
 }
 
+ktlint {
+    version.set("1.8.0")
+    verbose.set(true)
+    outputToConsole.set(true)
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    config.setFrom(files("config/detekt/detekt.yml"))
+}
+
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+tasks.named("check") {
+    dependsOn("koverXmlReport")
 }
