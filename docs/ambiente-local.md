@@ -1,7 +1,7 @@
 # MykytaDu API — Ambiente local
 
-> **Status:** configuração inicial da B-1
-> **Versão:** 0.3
+> **Status:** vigente
+> **Versão:** 0.4
 > **Data de referência:** 4 de setembro de 2026
 
 ## 1. Pré-requisitos
@@ -11,6 +11,17 @@
 - portas locais necessárias disponíveis.
 
 O PostgreSQL local é exclusivo para desenvolvimento. Nenhuma credencial deste ambiente deve ser reutilizada em staging ou produção.
+
+Validar os pré-requisitos no PowerShell:
+
+```powershell
+java -version
+docker version
+docker compose version
+.\gradlew.bat --version
+```
+
+O Gradle deve informar a versão 9.5.0 e uma JVM 25. Falhas nos comandos Docker devem ser resolvidas antes de executar testes de integração ou iniciar o profile `local`.
 
 ## 2. PostgreSQL
 
@@ -55,6 +66,17 @@ Iniciar a aplicação local com o profile explícito:
 .\gradlew.bat bootRun --args="--spring.profiles.active=local"
 ```
 
+Não é necessário iniciar o banco separadamente nesse fluxo: a integração do Spring Boot com Docker Compose inicia ou reutiliza o serviço `postgres` e aguarda o healthcheck. A aplicação fica disponível por padrão em `http://localhost:8080`.
+
+Em outro terminal, verificar os probes públicos:
+
+```powershell
+Invoke-RestMethod http://localhost:8080/actuator/health/liveness
+Invoke-RestMethod http://localhost:8080/actuator/health/readiness
+```
+
+Interromper a aplicação com `Ctrl+C`. Como o lifecycle local é `start-only`, o container e o volume continuam disponíveis para a próxima execução.
+
 O profile `local` mantém o container em execução ao encerrar a aplicação (`start-only`). As variáveis opcionais `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER` e `POSTGRES_PASSWORD` permitem sobrescrever somente os valores locais. Não armazenar segredos de ambientes remotos nesses arquivos.
 
 O profile `test` é ativado nos testes que não precisam de persistência. Testes de integração com banco usam `integration-test` e Testcontainers, sem reutilizar o banco local nem o estado de outra execução.
@@ -68,6 +90,14 @@ Executar somente a prova de integração com PostgreSQL efêmero:
 ```
 
 Esse teste requer Docker disponível, inicia a imagem `postgres:18.6-trixie` em porta dinâmica, aplica todas as migrations e descarta o container ao terminar. Ele não usa o serviço nem o volume definidos no `compose.yaml`.
+
+Executar o gate obrigatório completo, equivalente ao CI:
+
+```powershell
+.\gradlew.bat check --no-daemon --stacktrace
+```
+
+O gate compila a aplicação, executa testes unitários, arquiteturais e de integração, verifica ktlint e Detekt e gera o relatório XML do Kover. Consulte [Integração contínua](ci.md) e [Qualidade estática e cobertura](qualidade.md) para detalhes.
 
 ### 3.2 Banco isolado
 
@@ -136,13 +166,24 @@ Não usar comandos com nomes calculados, curingas ou remoção ampla de volumes.
 
 ## 6. Diagnóstico rápido
 
-| Sintoma | Verificação |
-| --- | --- |
-| daemon indisponível | confirmar que Docker Desktop/Engine está em execução |
-| porta 5432 ocupada | definir `POSTGRES_PORT` com uma porta livre |
-| container não saudável | executar `docker compose logs postgres` |
-| credenciais antigas após alteração do Compose | o cluster existente preserva os valores da primeira inicialização; avaliar reset local consciente |
-| dados desapareceram | confirmar o mount em `/var/lib/postgresql` e inspecionar o volume nomeado |
+| Sintoma | Verificação | Ação |
+| --- | --- | --- |
+| `JAVA_HOME` ou versão JVM incorreta | `java -version` e `.\gradlew.bat --version` | selecionar uma distribuição Java 25 e abrir um novo terminal |
+| daemon Docker indisponível | `docker version` | iniciar Docker Desktop/Engine e aguardar o servidor responder |
+| porta 5432 ocupada | `docker compose ps` e inspeção dos processos locais | definir `$env:POSTGRES_PORT` com uma porta livre antes de iniciar |
+| container não saudável | `docker compose ps` e `docker compose logs postgres` | corrigir a causa indicada no log; não aumentar tentativas para ocultar a falha |
+| credenciais antigas após alteração do Compose | comparar o ambiente atual com `docker compose config` | o cluster preserva os valores da primeira inicialização; avaliar o reset local consciente |
+| migration rejeitada pelo Flyway | localizar o primeiro erro no log e conferir nome, versão e checksum | não editar migration já aplicada; criar migration corretiva quando necessário |
+| readiness retorna `503` | `docker compose ps` e `docker compose logs postgres` | restaurar a conexão com o banco; liveness pode continuar saudável |
+| teste Testcontainers não inicia | `docker info` e relatório em `build/reports/tests/test/` | disponibilizar Docker ao processo Gradle e repetir o teste |
+| gate diverge do CI | repetir `.\gradlew.bat check --no-daemon --stacktrace` | corrigir a causa no build ou na configuração; não criar exceção exclusiva no CI |
+| dados desapareceram | confirmar o mount em `/var/lib/postgresql` e inspecionar o volume nomeado | verificar se o projeto/volume correto está sendo utilizado |
+
+Para limpar apenas saídas do Gradle, sem afetar PostgreSQL ou seu volume:
+
+```powershell
+.\gradlew.bat clean
+```
 
 ## 7. Migrations Flyway
 
