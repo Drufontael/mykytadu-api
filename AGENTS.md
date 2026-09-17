@@ -20,6 +20,17 @@ Em caso de divergência, não escolha silenciosamente uma fonte: corrija a incon
 - `docs/modelagem.md`: arquitetura e modelo vigentes;
 - `docs/api/openapi.yaml`, quando existir: contrato HTTP.
 
+## Governança do agente e skills
+
+- Este arquivo define as regras do repositório; skills complementam o fluxo, mas não podem relaxar suas restrições.
+- Em caso de conflito, preserve a regra mais restritiva e registre o bloqueio em vez de escolher silenciosamente uma interpretação.
+- Use `mykytadu-api-audit` para auditoria, revisão de progresso, coerência documental, riscos ou prontidão. Essa skill é somente leitura.
+- Use `mykytadu-api-commit-publish` somente quando o usuário invocar a skill ou autorizar explicitamente commit e publicação. A autorização não inclui pull request, merge, rebase ou force push.
+- Para implementação sem publicação, não use a skill de publicação; altere somente o escopo autorizado e aguarde nova autorização para commit ou push.
+- Antes de usar uma skill, leia seu `SKILL.md` completo e os recursos que ele indicar. O índice das skills fica em `.agents/README.md`.
+- Uma skill deve declarar claramente seu escopo, efeitos colaterais, pré-condições e resultado esperado.
+- Antes de declarar pronta uma alteração em `AGENTS.md` ou `.agents/`, execute `.agents\scripts\validate-skills.ps1`.
+
 ## Arquitetura obrigatória
 
 - Preserve o monólito modular e os módulos lógicos `app`, `api`, `identity`, `translation` e `shared`.
