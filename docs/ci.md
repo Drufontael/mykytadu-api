@@ -1,12 +1,12 @@
 # MykytaDu API — Integração contínua
 
 > **Status:** vigente
-> **Versão:** 0.2
+> **Versão:** 0.3
 > **Data de referência:** 17 de setembro de 2026
 
 ## 1. Objetivo
 
-O workflow `CI` aplica no GitHub Actions o mesmo gate obrigatório usado no desenvolvimento local. Nesta fase ele valida a fundação da aplicação; publicação de imagem OCI e deploy permanecem fora do escopo.
+O workflow `CI` aplica no GitHub Actions o mesmo gate obrigatório usado no desenvolvimento local. Nesta fase ele valida a fundação da aplicação e o contrato OpenAPI; publicação de imagem OCI e deploy permanecem fora do escopo.
 
 ## 2. Disparos e concorrência
 
@@ -25,7 +25,9 @@ Execuções anteriores da mesma referência são canceladas quando uma nova revi
 | Windows local | `.\gradlew.bat check --no-daemon --stacktrace` |
 | GitHub Actions | `./gradlew check --no-daemon --stacktrace` |
 
-O lifecycle `check` concentra compilação, testes unitários, arquiteturais e de integração, ktlint, Detekt e geração do relatório XML do Kover. Qualquer falha interrompe o job `Verify` e deve impedir a integração da mudança.
+O lifecycle `check` concentra compilação, testes unitários, arquiteturais e de integração, ktlint, Detekt, lint do OpenAPI e geração do relatório XML do Kover. Qualquer falha interrompe o job `Verify` e deve impedir a integração da mudança.
+
+O task Gradle `openApiLint` usa o Redocly CLI `2.45.0` com `npx` e faz parte do `check`. O job `OpenAPI contract` repete esse lint para manter um status dedicado e, em pull requests, executa adicionalmente a comparação de compatibilidade com oasdiff. Os dois caminhos usam a mesma especificação e versão do linter.
 
 O teste de integração inicia PostgreSQL efêmero por Testcontainers. O CI não declara um serviço PostgreSQL paralelo e não usa o banco persistente do Compose local.
 

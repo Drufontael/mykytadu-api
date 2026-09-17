@@ -9,6 +9,7 @@ Pré-requisitos:
 - Java 25 disponível no terminal;
 - Docker Desktop ou Docker Engine em execução;
 - Docker Compose v2;
+- Node.js 22.12.0 ou superior com `npx` disponível;
 - Git.
 
 No PowerShell, valide a máquina e execute todos os gates:
@@ -17,6 +18,8 @@ No PowerShell, valide a máquina e execute todos os gates:
 java -version
 docker version
 docker compose version
+node --version
+npx --version
 .\gradlew.bat --version
 .\gradlew.bat check --no-daemon --stacktrace
 ```

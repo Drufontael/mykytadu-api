@@ -88,6 +88,15 @@ tasks.withType<Test> {
     useJUnitPlatform()
 }
 
+val npxExecutable = if (System.getProperty("os.name").lowercase().contains("win")) "npx.cmd" else "npx"
+
+tasks.register<Exec>("openApiLint") {
+    description = "Validates the OpenAPI contract with the pinned Redocly CLI."
+    group = "verification"
+    workingDir(projectDir)
+    commandLine(npxExecutable, "--yes", "@redocly/cli@2.45.0", "lint", "docs/api/openapi.yaml")
+}
+
 tasks.named("check") {
-    dependsOn("koverXmlReport")
+    dependsOn("koverXmlReport", "openApiLint")
 }
