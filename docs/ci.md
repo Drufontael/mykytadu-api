@@ -1,8 +1,8 @@
 # MykytaDu API — Integração contínua
 
 > **Status:** vigente
-> **Versão:** 0.1
-> **Data de referência:** 4 de setembro de 2026
+> **Versão:** 0.2
+> **Data de referência:** 17 de setembro de 2026
 
 ## 1. Objetivo
 
@@ -29,7 +29,27 @@ O lifecycle `check` concentra compilação, testes unitários, arquiteturais e d
 
 O teste de integração inicia PostgreSQL efêmero por Testcontainers. O CI não declara um serviço PostgreSQL paralelo e não usa o banco persistente do Compose local.
 
-## 4. Ambiente de execução
+## 4. Validação do contrato OpenAPI
+
+O job `OpenAPI contract` executa em paralelo ao `Verify`:
+
+- em todo pull request, push para `master` e execução manual, o [Redocly CLI](https://redocly.com/docs/cli/commands/lint) `2.45.0` executa `lint` sobre `docs/api/openapi.yaml`;
+- em pull requests, o workflow busca a branch base e o [oasdiff Action](https://github.com/oasdiff/oasdiff-action) `v0.1.11` compara o contrato antigo com o revisado;
+- se a branch base ainda não possuir `docs/api/openapi.yaml`, a comparação é registrada como ignorada; o lint do contrato revisado continua obrigatório;
+- `fail-on: ERR` bloqueia alterações inequivocamente incompatíveis;
+- referências externas são proibidas e o relatório não é enviado para revisão hospedada (`review: false`).
+
+Warnings conhecidos do lint, como servidor local de desenvolvimento ou licença proprietária sem URL, são reportados sem bloquear. Erros de estrutura, referências inválidas ou mudanças incompatíveis bloqueiam o job.
+
+Para reproduzir o lint localmente, usando Node.js `>=22.12.0`:
+
+```bash
+npx --yes @redocly/cli@2.45.0 lint docs/api/openapi.yaml
+```
+
+A comparação de compatibilidade depende da branch base de um pull request e, por isso, é exercitada no CI remoto. O oasdiff aceita referências Git no formato `origin/<branch>:<arquivo>`.
+
+## 5. Ambiente de execução
 
 - runner Linux hospedado pelo GitHub;
 - Java 25 Temurin;
@@ -38,23 +58,22 @@ O teste de integração inicia PostgreSQL efêmero por Testcontainers. O CI não
 - Docker disponibilizado pelo runner para Testcontainers;
 - limite de 20 minutos para evitar execuções presas.
 
-## 5. Diagnóstico e evidências
+## 6. Diagnóstico e evidências
 
 Os diretórios `build/reports/` e `build/test-results/` são publicados no artefato `verification-reports`, inclusive quando um gate falha, e mantidos por 14 dias.
 
-Para reproduzir uma falha localmente, execute o comando equivalente da seção 3. Diferenças entre os ambientes devem ser tratadas como defeito de determinismo do build, não contornadas no workflow.
+Para reproduzir uma falha localmente, execute o comando equivalente das seções 3 ou 4. Diferenças entre os ambientes devem ser tratadas como defeito de determinismo do build, não contornadas no workflow.
 
-## 6. Proteção da branch
+## 7. Proteção da branch
 
-Após a primeira execução remota bem-sucedida, configurar nas regras da branch `master` o check `Verify` como obrigatório. O arquivo do workflow faz o job falhar diante de qualquer gate reprovado; a regra do repositório é o mecanismo que impede o merge.
+Após a primeira execução remota bem-sucedida, configurar nas regras da branch `master` os checks `Verify` e `OpenAPI contract` como obrigatórios. O arquivo do workflow faz os jobs falharem diante de qualquer gate reprovado; a regra do repositório é o mecanismo que impede o merge.
 
-## 7. Limites desta etapa
+## 8. Limites desta etapa
 
 Ainda não fazem parte do pipeline:
 
 - construção e publicação de imagem OCI;
 - deploy em qualquer ambiente;
-- validação de compatibilidade OpenAPI;
 - análise de vulnerabilidades e assinatura de artefatos.
 
 Esses gates serão adicionados nas tarefas do roadmap que introduzirem os respectivos artefatos e riscos.

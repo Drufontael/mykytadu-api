@@ -52,3 +52,48 @@ jobs:
             build/test-results/
           if-no-files-found: warn
           retention-days: 14
+
+  contract:
+    name: OpenAPI contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22.12.0"
+
+      - name: Lint OpenAPI contract
+        run: npx --yes @redocly/cli@2.45.0 lint docs/api/openapi.yaml
+
+      - name: Fetch pull request base
+        if: github.event_name == 'pull_request'
+        run: git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+
+      - name: Check whether base OpenAPI contract exists
+        if: github.event_name == 'pull_request'
+        id: base-openapi
+        shell: bash
+        run: |
+          if git cat-file -e "origin/${{ github.base_ref }}:docs/api/openapi.yaml" 2>/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "No OpenAPI contract exists on the base branch; skipping compatibility comparison."
+          fi
+
+      - name: Check backward compatibility
+        if: >
+          github.event_name == 'pull_request' &&
+          steps.base-openapi.outputs.exists == 'true'
+        uses: oasdiff/oasdiff-action/breaking@v0.1.11
+        with:
+          base: "origin/${{ github.base_ref }}:docs/api/openapi.yaml"
+          revision: "HEAD:docs/api/openapi.yaml"
+          fail-on: ERR
+          allow-external-refs: false
+          review: false

@@ -1,0 +1,1264 @@
+openapi: 3.1.0
+info:
+  title: MykytaDu API
+  version: 0.1.0
+  description: |
+    Contrato HTTP inicial do MykytaDu API.
+
+    Esta versão descreve as superfícies iniciais de Identity e Translation.
+    A API usa JSON em camelCase, IDs UUID como strings e datas ISO-8601 em
+    UTC. O prefixo `/api/v1` faz parte da URL base do servidor.
+  license:
+    name: Proprietary
+servers:
+  - url: http://localhost:8081/api/v1
+    description: Desenvolvimento local
+tags:
+  - name: Identity
+    description: Cadastro, autenticação, sessões e perfil
+  - name: Translation
+    description: Tradução de conteúdos textuais controlados
+paths:
+  /auth/register:
+    post:
+      tags: [Identity]
+      operationId: registerAccount
+      summary: Criar conta
+      description: |
+        Cria uma conta no estado `pending` e inicia a verificação de e-mail.
+        O endpoint não retorna credenciais nem tokens. A resposta é uniforme
+        para não transformar o texto de erro em mecanismo de enumeração.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              default:
+                $ref: '#/components/examples/RegisterRequest'
+      responses:
+        '201':
+          description: Conta criada e aguardando verificação de e-mail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistrationResponse'
+              examples:
+                default:
+                  $ref: '#/components/examples/RegistrationResponse'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '409':
+          description: Cadastro não pode ser concluído
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                registrationRejected:
+                  $ref: '#/components/examples/RegistrationRejectedProblem'
+        '429':
+          $ref: '#/components/responses/RateLimitProblem'
+        '500':
+          $ref: '#/components/responses/InternalProblem'
+
+  /auth/verify-email:
+    post:
+      tags: [Identity]
+      operationId: verifyEmail
+      summary: Verificar e-mail
+      description: Consome um token de ação válido e ativa a conta atomicamente.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActionTokenRequest'
+            examples:
+              default:
+                $ref: '#/components/examples/ActionTokenRequest'
+      responses:
+        '204':
+          description: E-mail verificado e conta ativada
+        '400':
+          description: Token ausente, inválido, expirado ou já consumido
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                invalidActionToken:
+                  $ref: '#/components/examples/InvalidActionTokenProblem'
+        '500':
+          $ref: '#/components/responses/InternalProblem'
+
+  /auth/login:
+    post:
+      tags: [Identity]
+      operationId: login
+      summary: Iniciar sessão
+      description: |
+        Autentica somente contas `active`. No Web, o refresh token é enviado
+        exclusivamente no cookie protegido `mykytadu_refresh`; em Android,
+        iOS e Desktop/JVM, o refresh token opaco é retornado no JSON para ser
+        guardado no cofre seguro da plataforma.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              default:
+                $ref: '#/components/examples/LoginRequest'
+      responses:
+        '200':
+          description: Sessão criada
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/RefreshCookie'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+              examples:
+                web:
+                  $ref: '#/components/examples/WebSessionResponse'
+                native:
+                  $ref: '#/components/examples/NativeSessionResponse'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '401':
+          description: Credencial inválida ou conta ainda não autorizada a iniciar sessão
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                invalidCredentials:
+                  $ref: '#/components/examples/InvalidCredentialsProblem'
+                emailVerificationRequired:
+                  $ref: '#/components/examples/EmailVerificationRequiredProblem'
+        '429':
+          $ref: '#/components/responses/RateLimitProblem'
+        '500':
+          $ref: '#/components/responses/InternalProblem'
+
+  /auth/csrf:
+    get:
+      tags: [Identity]
+      operationId: getCsrfToken
+      summary: Obter synchronizer token Web
+      description: |
+        Retorna um synchronizer token associado à sessão identificada pelo
+        cookie de refresh. O token fica somente em memória no cliente Web e
+        deve ser enviado no header `X-CSRF-Token` em refresh e logout.
+        Clientes nativos não utilizam este endpoint.
+      security:
+        - refreshCookie: []
+      responses:
+        '200':
+          description: Token CSRF associado à sessão atual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfResponse'
+              examples:
+                default:
+                  $ref: '#/components/examples/CsrfResponse'
+        '401':
+          $ref: '#/components/responses/SessionProblem'
+        '500':
+          $ref: '#/components/responses/InternalProblem'
+
+  /auth/refresh:
+    post:
+      tags: [Identity]
+      operationId: refreshSession
+      summary: Renovar sessão
+      description: |
+        Rotaciona atomicamente o refresh token. No Web, o navegador envia o
+        cookie automaticamente e também `X-CSRF-Token` e `Origin`; o corpo é
+        omitido. Nos clientes nativos, o corpo contém o refresh token opaco
+        lido do cofre seguro. A resposta Web não contém `refreshToken`.
+      security:
+        - refreshCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/Origin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+            examples:
+              native:
+                $ref: '#/components/examples/RefreshRequest'
+      responses:
+        '200':
+          description: Sessão renovada e refresh token rotacionado
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/RefreshCookie'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+              examples:
+                web:
+                  $ref: '#/components/examples/WebSessionResponse'
+                native:
+                  $ref: '#/components/examples/NativeSessionResponse'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '401':
+          description: Sessão inválida, expirada ou refresh token reutilizado
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                sessionInvalid:
+                  $ref: '#/components/examples/SessionInvalidProblem'
+        '403':
+          $ref: '#/components/responses/CsrfProblem'
+        '429':
+          $ref: '#/components/responses/RateLimitProblem'
+        '500':
+          $ref: '#/components/responses/InternalProblem'
+
+  /auth/logout:
+    post:
+      tags: [Identity]
+      operationId: logout
+      summary: Encerrar sessão atual
+      description: |
+        Revoga a sessão atual. O Web usa o cookie de refresh, o access token
+        Bearer e o synchronizer token; clientes nativos enviam o refresh token
+        opaco no corpo e o access token como Bearer. A operação é idempotente
+        para uma sessão já encerrada.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/Origin'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+            examples:
+              native:
+                $ref: '#/components/examples/LogoutRequest'
+      responses:
+        '204':
+          description: Sessão revogada
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/ClearedRefreshCookie'
+        '401':
+          $ref: '#/components/responses/AuthenticationProblem'
+        '403':
+          $ref: '#/components/responses/CsrfProblem'
+        '500':
+          $ref: '#/components/responses/InternalProblem'
+
+  /auth/logout-all:
+    post:
+      tags: [Identity]
+      operationId: logoutAll
+      summary: Encerrar todas as sessões
+      description: Revoga todas as sessões da conta autenticada.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+        - $ref: '#/components/parameters/Origin'
+      responses:
+        '204':
+          description: Todas as sessões foram revogadas
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/ClearedRefreshCookie'
+        '401':
+          $ref: '#/components/responses/AuthenticationProblem'
+        '403':
+          $ref: '#/components/responses/CsrfProblem'
+        '500':
+          $ref: '#/components/responses/InternalProblem'
+
+  /auth/password/forgot:
+    post:
+      tags: [Identity]
+      operationId: requestPasswordReset
+      summary: Solicitar redefinição de senha
+      description: |
+        Aceita a solicitação sem revelar se o e-mail está cadastrado. O envio
+        efetivo da mensagem e o ciclo de vida do token são responsabilidades
+        do fluxo de Identity.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordForgotRequest'
+            examples:
+              default:
+                $ref: '#/components/examples/PasswordForgotRequest'
+      responses:
+        '202':
+          description: Solicitação aceita sem revelar a existência da conta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionAcceptedResponse'
+              examples:
+                default:
+                  value:
+                    accepted: true
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '429':
+          $ref: '#/components/responses/RateLimitProblem'
+        '500':
+          $ref: '#/components/responses/InternalProblem'
+
+  /auth/password/reset:
+    post:
+      tags: [Identity]
+      operationId: resetPassword
+      summary: Redefinir senha
+      description: Consome um token de ação válido e substitui a senha da conta.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+            examples:
+              default:
+                $ref: '#/components/examples/PasswordResetRequest'
+      responses:
+        '204':
+          description: Senha redefinida; sessões existentes podem ser revogadas pela política de Identity
+        '400':
+          description: Token ou nova senha inválidos
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                invalidActionToken:
+                  $ref: '#/components/examples/InvalidActionTokenProblem'
+        '429':
+          $ref: '#/components/responses/RateLimitProblem'
+        '500':
+          $ref: '#/components/responses/InternalProblem'
+
+  /me:
+    get:
+      tags: [Identity]
+      operationId: getCurrentProfile
+      summary: Obter perfil atual
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Perfil da conta autenticada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+              examples:
+                default:
+                  $ref: '#/components/examples/UserProfile'
+        '401':
+          $ref: '#/components/responses/AuthenticationProblem'
+        '500':
+          $ref: '#/components/responses/InternalProblem'
+    patch:
+      tags: [Identity]
+      operationId: updateCurrentProfile
+      summary: Atualizar perfil atual
+      description: Atualiza somente campos de perfil permitidos; e-mail e papéis não são alterados por esta operação.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+            examples:
+              default:
+                $ref: '#/components/examples/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Perfil atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '401':
+          $ref: '#/components/responses/AuthenticationProblem'
+        '500':
+          $ref: '#/components/responses/InternalProblem'
+
+  /translations:
+    post:
+      tags: [Translation]
+      operationId: translateContent
+      summary: Traduzir um conteúdo
+      description: |
+        Recebe o texto que o cliente já possui, aplica os limites e a
+        normalização definidos pelo domínio Translation e retorna a tradução.
+        O cliente nunca chama o fornecedor diretamente. O campo `source` é
+        apenas metadado opcional de proveniência e não autoriza a API a buscar
+        conteúdo externo.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TranslationRequest'
+            examples:
+              default:
+                $ref: '#/components/examples/TranslationRequest'
+      responses:
+        '200':
+          description: Tradução concluída, com ou sem uso do cache
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranslationResponse'
+              examples:
+                cached:
+                  $ref: '#/components/examples/CachedTranslationResponse'
+                translated:
+                  $ref: '#/components/examples/TranslatedResponse'
+        '400':
+          description: Texto, idioma, tipo de conteúdo ou proveniência inválidos
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                translationValidation:
+                  $ref: '#/components/examples/TranslationValidationProblem'
+        '401':
+          $ref: '#/components/responses/AuthenticationProblem'
+        '429':
+          description: Limite de requisições ou quota de tradução excedido
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                format: int32
+                minimum: 1
+              description: Segundos mínimos antes de uma nova tentativa.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                quotaExceeded:
+                  $ref: '#/components/examples/TranslationQuotaProblem'
+        '502':
+          $ref: '#/components/responses/TranslationProviderProblem'
+        '504':
+          $ref: '#/components/responses/TranslationTimeoutProblem'
+        '500':
+          $ref: '#/components/responses/InternalProblem'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token JWT curto, mantido somente em memória no cliente.
+    refreshCookie:
+      type: apiKey
+      in: cookie
+      name: mykytadu_refresh
+      description: Refresh token opaco HttpOnly, Secure, SameSite=Lax e Path=/api/v1/auth.
+
+  parameters:
+    CsrfToken:
+      name: X-CSRF-Token
+      in: header
+      required: false
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 512
+      description: Obrigatório para o fluxo Web em refresh e logout; mantido somente em memória.
+    Origin:
+      name: Origin
+      in: header
+      required: false
+      schema:
+        type: string
+        format: uri
+      description: Origem enviada pelo navegador e validada pela allowlist do ambiente.
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+      description: Chave opcional para repetição segura após resposta de rede desconhecida.
+
+  headers:
+    RefreshCookie:
+      description: Cookie de refresh rotacionado; no Web, não é acessível ao JavaScript.
+      schema:
+        type: string
+        example: mykytadu_refresh=<opaque-token>; Path=/api/v1/auth; HttpOnly; Secure; SameSite=Lax
+    ClearedRefreshCookie:
+      description: Limpa o cookie de refresh no Web.
+      schema:
+        type: string
+        example: mykytadu_refresh=; Max-Age=0; Path=/api/v1/auth; HttpOnly; Secure; SameSite=Lax
+
+  schemas:
+    RegisterRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          description: Endereço normalizado pelo servidor antes da persistência.
+          example: pessoa@example.com
+        password:
+          type: string
+          format: password
+          minLength: 12
+          maxLength: 128
+          writeOnly: true
+          description: Senha recebida somente para derivação do hash Argon2id.
+        displayName:
+          type: [string, 'null']
+          minLength: 1
+          maxLength: 80
+          description: Nome exibido no perfil; pode ser omitido no cadastro.
+          example: Pessoa MykytaDu
+
+    RegistrationResponse:
+      type: object
+      additionalProperties: false
+      required: [user, nextAction]
+      properties:
+        user:
+          $ref: '#/components/schemas/UserProfile'
+        nextAction:
+          type: string
+          enum: [verifyEmail]
+          description: Próxima ação esperada do cliente.
+
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          example: pessoa@example.com
+        password:
+          type: string
+          format: password
+          minLength: 1
+          maxLength: 128
+          writeOnly: true
+          example: senha-fornecida-pelo-usuario
+
+    SessionResponse:
+      type: object
+      additionalProperties: false
+      required: [accessToken, tokenType, expiresIn, user]
+      properties:
+        accessToken:
+          type: string
+          readOnly: true
+          description: JWT de curta duração; nunca persistir em banco ou localStorage.
+          example: <access-token>
+        tokenType:
+          type: string
+          enum: [Bearer]
+          example: Bearer
+        expiresIn:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 600
+          description: Validade do access token em segundos.
+        refreshToken:
+          type: string
+          readOnly: true
+          description: Retornado somente para clientes nativos e persistido exclusivamente no cofre seguro da plataforma.
+          example: <opaque-refresh-token>
+        csrfToken:
+          type: string
+          readOnly: true
+          description: Retornado para o Web e mantido somente em memória.
+          example: <csrf-token>
+        user:
+          $ref: '#/components/schemas/UserProfile'
+
+    ActionTokenRequest:
+      type: object
+      additionalProperties: false
+      required: [actionToken]
+      properties:
+        actionToken:
+          type: string
+          minLength: 1
+          maxLength: 512
+          writeOnly: true
+          description: Token puro recebido por canal de ação; nunca é persistido em texto puro.
+          example: <action-token-from-email>
+
+    RefreshRequest:
+      type: object
+      additionalProperties: false
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          writeOnly: true
+          description: Obrigatório para clientes nativos; omitido no Web, que usa o cookie protegido.
+          example: <opaque-refresh-token>
+
+    LogoutRequest:
+      type: object
+      additionalProperties: false
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          writeOnly: true
+          description: Obrigatório para clientes nativos; omitido no Web.
+          example: <opaque-refresh-token>
+
+    PasswordForgotRequest:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          example: pessoa@example.com
+
+    PasswordResetRequest:
+      type: object
+      additionalProperties: false
+      required: [actionToken, newPassword]
+      properties:
+        actionToken:
+          type: string
+          minLength: 1
+          maxLength: 512
+          writeOnly: true
+          example: <password-reset-token-from-email>
+        newPassword:
+          type: string
+          format: password
+          minLength: 12
+          maxLength: 128
+          writeOnly: true
+          example: nova-senha-fornecida-pelo-usuario
+
+    UpdateProfileRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        displayName:
+          type: [string, 'null']
+          minLength: 1
+          maxLength: 80
+          example: Novo nome
+
+    UserProfile:
+      type: object
+      additionalProperties: false
+      required: [id, email, displayName, status, roles, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+          example: 01991f18-7d42-7b21-a2ef-1d8e6e14a901
+        email:
+          type: string
+          format: email
+          readOnly: true
+          example: pessoa@example.com
+        displayName:
+          type: [string, 'null']
+          readOnly: true
+          example: Pessoa MykytaDu
+        status:
+          $ref: '#/components/schemas/AccountStatus'
+        roles:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Role'
+        emailVerifiedAt:
+          type: [string, 'null']
+          format: date-time
+          readOnly: true
+          description: Instante UTC da verificação; nulo enquanto a conta estiver `pending`.
+          example: 2026-09-17T14:30:00Z
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+          example: 2026-09-17T14:00:00Z
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+          example: 2026-09-17T14:30:00Z
+
+    AccountStatus:
+      type: string
+      enum: [pending, active, blocked, deleted]
+
+    Role:
+      type: string
+      enum: [USER, ADMIN]
+
+    CsrfResponse:
+      type: object
+      additionalProperties: false
+      required: [csrfToken]
+      properties:
+        csrfToken:
+          type: string
+          minLength: 1
+          maxLength: 512
+          readOnly: true
+          example: <csrf-token>
+
+    ActionAcceptedResponse:
+      type: object
+      additionalProperties: false
+      required: [accepted]
+      properties:
+        accepted:
+          type: boolean
+          example: true
+
+    ProblemCode:
+      type: string
+      description: Código estável usado pelo cliente; nunca substituir por `detail`, `title` ou `errors[].message`.
+      enum:
+        - request_validation_failed
+        - registration_rejected
+        - invalid_action_token
+        - authentication_required
+        - invalid_credentials
+        - email_verification_required
+        - session_invalid
+        - csrf_invalid
+        - rate_limit_exceeded
+        - translation_quota_exceeded
+        - translation_provider_failed
+        - translation_provider_timeout
+        - internal_error
+
+    ProblemDetails:
+      type: object
+      additionalProperties: false
+      required: [type, title, status, detail, instance, code, traceId, errors]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          description: URN estável da categoria do problema.
+          example: urn:mykytadu:problem:request_validation_failed
+        title:
+          type: string
+          description: Título humano curto; não usar como chave de decisão.
+          example: Request validation failed
+        status:
+          type: integer
+          format: int32
+          minimum: 400
+          maximum: 599
+          example: 400
+        detail:
+          type: string
+          description: Mensagem humana que pode variar; não usar como chave de decisão.
+          example: One or more fields are invalid.
+        instance:
+          type: string
+          description: Path da requisição sem query string.
+          example: /api/v1/auth/register
+        code:
+          $ref: '#/components/schemas/ProblemCode'
+          description: Código estável usado pelo cliente.
+          example: request_validation_failed
+        traceId:
+          type: string
+          format: uuid
+          description: Identificador de correlação para suporte.
+          example: 2d46eea5-6ff7-4ee8-95c9-5c71c9f82484
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldError'
+
+    FieldError:
+      type: object
+      additionalProperties: false
+      required: [field, code, message]
+      properties:
+        field:
+          type: string
+          example: password
+        code:
+          type: string
+          example: too_short
+        message:
+          type: string
+          description: Mensagem humana de validação; não usar como chave de decisão.
+          example: must contain at least 12 characters
+
+    TranslationRequest:
+      type: object
+      additionalProperties: false
+      required: [text, sourceLanguage, targetLanguage, contentType]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 10000
+          description: Texto recebido do cliente; não é persistido como texto original nem registrado em telemetria integral.
+          example: Original anime description
+        sourceLanguage:
+          type: string
+          enum: [en, ja, auto]
+          description: Idioma de origem explícito ou detecção automática limitada ao suporte do MVP.
+          example: en
+        targetLanguage:
+          type: string
+          enum: [pt-BR]
+          description: Idioma-alvo disponível no MVP.
+          example: pt-BR
+        contentType:
+          type: string
+          enum: [ANIME_DESCRIPTION]
+          description: Tipo de conteúdo explicitamente autorizado pelo MVP.
+          example: ANIME_DESCRIPTION
+        source:
+          $ref: '#/components/schemas/TranslationSource'
+
+    TranslationSource:
+      type: object
+      additionalProperties: false
+      required: [system, externalId]
+      description: Metadado opcional e não confiável de proveniência.
+      properties:
+        system:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: Sistema de origem informado pelo cliente; não é usado para buscar conteúdo.
+          example: ANILIST
+        externalId:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: Identificador no sistema de origem; não substitui o texto na chave de cache.
+          example: '15125'
+
+    TranslationResponse:
+      type: object
+      additionalProperties: false
+      required: [translation, sourceLanguage, targetLanguage, contentType, cached]
+      properties:
+        translation:
+          type: string
+          description: Texto traduzido; pode preservar quebras de linha conforme a política do conteúdo.
+          example: Descrição traduzida
+        sourceLanguage:
+          type: string
+          enum: [en, ja]
+          description: Idioma efetivamente usado; quando a entrada foi `auto`, representa o idioma detectado.
+          example: en
+        targetLanguage:
+          type: string
+          enum: [pt-BR]
+          example: pt-BR
+        contentType:
+          type: string
+          enum: [ANIME_DESCRIPTION]
+          example: ANIME_DESCRIPTION
+        cached:
+          type: boolean
+          description: Indica se a resposta veio de uma tradução válida em cache.
+          example: true
+
+  responses:
+    ValidationProblem:
+      description: Corpo ausente, inválido ou com campos que não atendem às restrições
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            default:
+              $ref: '#/components/examples/ValidationProblem'
+    AuthenticationProblem:
+      description: Autenticação ausente, inválida ou expirada
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            default:
+              $ref: '#/components/examples/AuthenticationRequiredProblem'
+    SessionProblem:
+      description: Sessão de refresh ausente, inválida ou expirada
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            default:
+              $ref: '#/components/examples/SessionInvalidProblem'
+    CsrfProblem:
+      description: Synchronizer token ausente, inválido ou incompatível com a sessão
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            default:
+              $ref: '#/components/examples/CsrfProblem'
+    RateLimitProblem:
+      description: Limite operacional excedido
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+          description: Segundos mínimos antes de uma nova tentativa.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            default:
+              $ref: '#/components/examples/RateLimitProblem'
+    InternalProblem:
+      description: Falha inesperada sem detalhes internos
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            default:
+              $ref: '#/components/examples/InternalProblem'
+    TranslationProviderProblem:
+      description: O provedor externo falhou ou devolveu uma resposta inválida
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            default:
+              $ref: '#/components/examples/TranslationProviderProblem'
+    TranslationTimeoutProblem:
+      description: O provedor externo não respondeu dentro do timeout
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            default:
+              $ref: '#/components/examples/TranslationTimeoutProblem'
+
+  examples:
+    RegisterRequest:
+      value:
+        email: pessoa@example.com
+        password: senha-fornecida-pelo-usuario
+        displayName: Pessoa MykytaDu
+    RegistrationResponse:
+      value:
+        user:
+          id: 01991f18-7d42-7b21-a2ef-1d8e6e14a901
+          email: pessoa@example.com
+          displayName: Pessoa MykytaDu
+          status: pending
+          roles: [USER]
+          emailVerifiedAt: null
+          createdAt: 2026-09-17T14:00:00Z
+          updatedAt: 2026-09-17T14:00:00Z
+        nextAction: verifyEmail
+    ActionTokenRequest:
+      value:
+        actionToken: <action-token-from-email>
+    LoginRequest:
+      value:
+        email: pessoa@example.com
+        password: senha-fornecida-pelo-usuario
+    WebSessionResponse:
+      value:
+        accessToken: <access-token>
+        tokenType: Bearer
+        expiresIn: 600
+        csrfToken: <csrf-token>
+        user:
+          id: 01991f18-7d42-7b21-a2ef-1d8e6e14a901
+          email: pessoa@example.com
+          displayName: Pessoa MykytaDu
+          status: active
+          roles: [USER]
+          emailVerifiedAt: 2026-09-17T14:30:00Z
+          createdAt: 2026-09-17T14:00:00Z
+          updatedAt: 2026-09-17T14:30:00Z
+    NativeSessionResponse:
+      value:
+        accessToken: <access-token>
+        tokenType: Bearer
+        expiresIn: 600
+        refreshToken: <opaque-refresh-token>
+        user:
+          id: 01991f18-7d42-7b21-a2ef-1d8e6e14a901
+          email: pessoa@example.com
+          displayName: Pessoa MykytaDu
+          status: active
+          roles: [USER]
+          emailVerifiedAt: 2026-09-17T14:30:00Z
+          createdAt: 2026-09-17T14:00:00Z
+          updatedAt: 2026-09-17T14:30:00Z
+    CsrfResponse:
+      value:
+        csrfToken: <csrf-token>
+    RefreshRequest:
+      value:
+        refreshToken: <opaque-refresh-token>
+    LogoutRequest:
+      value:
+        refreshToken: <opaque-refresh-token>
+    PasswordForgotRequest:
+      value:
+        email: pessoa@example.com
+    PasswordResetRequest:
+      value:
+        actionToken: <password-reset-token-from-email>
+        newPassword: nova-senha-fornecida-pelo-usuario
+    UpdateProfileRequest:
+      value:
+        displayName: Novo nome
+    UserProfile:
+      value:
+        id: 01991f18-7d42-7b21-a2ef-1d8e6e14a901
+        email: pessoa@example.com
+        displayName: Pessoa MykytaDu
+        status: active
+        roles: [USER]
+        emailVerifiedAt: 2026-09-17T14:30:00Z
+        createdAt: 2026-09-17T14:00:00Z
+        updatedAt: 2026-09-17T14:30:00Z
+    ValidationProblem:
+      value:
+        type: urn:mykytadu:problem:request_validation_failed
+        title: Request validation failed
+        status: 400
+        detail: One or more fields are invalid.
+        instance: /api/v1/auth/register
+        code: request_validation_failed
+        traceId: 2d46eea5-6ff7-4ee8-95c9-5c71c9f82484
+        errors:
+          - field: password
+            code: too_short
+            message: must contain at least 12 characters
+    AuthenticationRequiredProblem:
+      value:
+        type: urn:mykytadu:problem:authentication_required
+        title: Authentication required
+        status: 401
+        detail: A valid authentication credential is required.
+        instance: /api/v1/me
+        code: authentication_required
+        traceId: 4ba6bf23-1fe0-42fc-9a4c-3df9ea19fa71
+        errors: []
+    InvalidCredentialsProblem:
+      value:
+        type: urn:mykytadu:problem:invalid_credentials
+        title: Authentication failed
+        status: 401
+        detail: The credentials could not be accepted.
+        instance: /api/v1/auth/login
+        code: invalid_credentials
+        traceId: 4ba6bf23-1fe0-42fc-9a4c-3df9ea19fa71
+        errors: []
+    EmailVerificationRequiredProblem:
+      value:
+        type: urn:mykytadu:problem:email_verification_required
+        title: Email verification required
+        status: 401
+        detail: The account must be verified before login.
+        instance: /api/v1/auth/login
+        code: email_verification_required
+        traceId: 4ba6bf23-1fe0-42fc-9a4c-3df9ea19fa71
+        errors: []
+    RegistrationRejectedProblem:
+      value:
+        type: urn:mykytadu:problem:registration_rejected
+        title: Registration unavailable
+        status: 409
+        detail: The account cannot be created with the supplied data at this time.
+        instance: /api/v1/auth/register
+        code: registration_rejected
+        traceId: 71c0e13d-a3d8-45c3-8f68-e5a7e04b5bb1
+        errors: []
+    InvalidActionTokenProblem:
+      value:
+        type: urn:mykytadu:problem:invalid_action_token
+        title: Action token invalid
+        status: 400
+        detail: The action token is invalid or expired.
+        instance: /api/v1/auth/verify-email
+        code: invalid_action_token
+        traceId: 88fb0ef8-9c8b-4b18-b77a-bd7e38cd1a04
+        errors: []
+    SessionInvalidProblem:
+      value:
+        type: urn:mykytadu:problem:session_invalid
+        title: Session invalid
+        status: 401
+        detail: The session is invalid, expired or no longer usable.
+        instance: /api/v1/auth/refresh
+        code: session_invalid
+        traceId: b0c5f889-8b82-4ad4-9fef-8f0b9c82f6c2
+        errors: []
+    CsrfProblem:
+      value:
+        type: urn:mykytadu:problem:csrf_invalid
+        title: CSRF validation failed
+        status: 403
+        detail: The CSRF token or origin could not be validated.
+        instance: /api/v1/auth/refresh
+        code: csrf_invalid
+        traceId: 87d66d5f-19c7-49ac-9dbe-c9d6bbf65bdc
+        errors: []
+    RateLimitProblem:
+      value:
+        type: urn:mykytadu:problem:rate_limit_exceeded
+        title: Too many requests
+        status: 429
+        detail: The operation is temporarily rate limited.
+        instance: /api/v1/auth/login
+        code: rate_limit_exceeded
+        traceId: 1a314b4a-1026-4c44-a4ea-4ad8c2e7b69c
+        errors: []
+    InternalProblem:
+      value:
+        type: urn:mykytadu:problem:internal_error
+        title: Internal error
+        status: 500
+        detail: The request could not be completed.
+        instance: /api/v1/auth/login
+        code: internal_error
+        traceId: 6d72c7b5-95f8-49b6-8e7a-0f7c6de4b2fa
+        errors: []
+    TranslationRequest:
+      value:
+        text: Original anime description
+        sourceLanguage: en
+        targetLanguage: pt-BR
+        contentType: ANIME_DESCRIPTION
+        source:
+          system: ANILIST
+          externalId: '15125'
+    CachedTranslationResponse:
+      value:
+        translation: Descrição traduzida
+        sourceLanguage: en
+        targetLanguage: pt-BR
+        contentType: ANIME_DESCRIPTION
+        cached: true
+    TranslatedResponse:
+      value:
+        translation: Descrição traduzida
+        sourceLanguage: en
+        targetLanguage: pt-BR
+        contentType: ANIME_DESCRIPTION
+        cached: false
+    TranslationValidationProblem:
+      value:
+        type: urn:mykytadu:problem:request_validation_failed
+        title: Request validation failed
+        status: 400
+        detail: The translation request contains invalid content or parameters.
+        instance: /api/v1/translations
+        code: request_validation_failed
+        traceId: 2e1f75f4-493c-4a43-a6c1-4f12f46a7d8e
+        errors:
+          - field: text
+            code: too_long
+            message: must contain at most 10000 characters
+    TranslationQuotaProblem:
+      value:
+        type: urn:mykytadu:problem:translation_quota_exceeded
+        title: Translation quota exceeded
+        status: 429
+        detail: The translation limit for this principal was exceeded.
+        instance: /api/v1/translations
+        code: translation_quota_exceeded
+        traceId: 0f984c5e-6c4f-49e6-94e2-f3f97a3b4e31
+        errors: []
+    TranslationProviderProblem:
+      value:
+        type: urn:mykytadu:problem:translation_provider_failed
+        title: Translation provider failed
+        status: 502
+        detail: The translation provider could not complete the request.
+        instance: /api/v1/translations
+        code: translation_provider_failed
+        traceId: 7cc4e2d3-6dc6-4f9f-9e10-7d8bb3d1a6c4
+        errors: []
+    TranslationTimeoutProblem:
+      value:
+        type: urn:mykytadu:problem:translation_provider_timeout
+        title: Translation provider timeout
+        status: 504
+        detail: The translation provider did not respond in time.
+        instance: /api/v1/translations
+        code: translation_provider_timeout
+        traceId: 9aa5a7f7-9a4c-42ec-bbf1-7d2f4c616d5e
+        errors: []
