@@ -7,31 +7,31 @@ import jakarta.servlet.http.HttpServletResponse
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
-import org.springframework.security.core.AuthenticationException
-import org.springframework.security.web.AuthenticationEntryPoint
+import org.springframework.security.access.AccessDeniedException
+import org.springframework.security.web.access.AccessDeniedHandler
 import org.springframework.stereotype.Component
 import tools.jackson.databind.ObjectMapper
 
 @Component
-class ProblemAuthenticationEntryPoint(
+class ProblemAccessDeniedHandler(
     private val problemFactory: ApiProblemFactory,
     private val objectMapper: ObjectMapper,
-) : AuthenticationEntryPoint {
+) : AccessDeniedHandler {
 
-    override fun commence(
+    override fun handle(
         request: HttpServletRequest,
         response: HttpServletResponse,
-        authException: AuthenticationException,
+        accessDeniedException: AccessDeniedException,
     ) {
         val problem = problemFactory.create(
-            status = HttpStatus.UNAUTHORIZED,
-            code = ProblemCode.AUTHENTICATION_REQUIRED,
+            status = HttpStatus.FORBIDDEN,
+            code = ProblemCode.AUTHORIZATION_DENIED,
             request = request,
         )
 
-        response.status = HttpStatus.UNAUTHORIZED.value()
+        response.status = HttpStatus.FORBIDDEN.value()
         response.contentType = MediaType.APPLICATION_PROBLEM_JSON_VALUE
-        response.setHeader(HttpHeaders.WWW_AUTHENTICATE, "Bearer")
+        response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store")
         objectMapper.writeValue(response.outputStream, problem)
     }
 }

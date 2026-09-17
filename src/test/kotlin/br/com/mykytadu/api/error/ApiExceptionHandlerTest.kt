@@ -63,6 +63,21 @@ class ApiExceptionHandlerTest(@Autowired private val mockMvc: MockMvc) {
         assertThat(response.contentAsString)
             .doesNotContain("sensitive-detail", "stackTrace", "exception")
     }
+
+    @Test
+    fun `maps a malformed request body to validation problem details`() {
+        mockMvc.post("/test/problem-details/validation") {
+            contentType = MediaType.APPLICATION_JSON
+            content = "{"
+        }.andExpect {
+            status { isBadRequest() }
+            content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
+            jsonPath("$.code") { value("request_validation_failed") }
+            jsonPath("$.title") { value("Request validation failed") }
+            jsonPath("$.detail") { value("The request body is missing or malformed.") }
+            jsonPath("$.errors") { isEmpty() }
+        }
+    }
 }
 
 @RestController

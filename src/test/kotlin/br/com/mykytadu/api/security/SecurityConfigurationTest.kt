@@ -1,6 +1,7 @@
 package br.com.mykytadu.api.security
 
 import br.com.mykytadu.api.error.ApiProblemFactory
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
@@ -8,6 +9,9 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest
 import org.springframework.context.annotation.Import
 import org.springframework.http.MediaType
+import org.springframework.mock.web.MockHttpServletRequest
+import org.springframework.mock.web.MockHttpServletResponse
+import org.springframework.security.access.AccessDeniedException
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
@@ -15,9 +19,17 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RestController
 
 @WebMvcTest(SecurityFixtureController::class)
-@Import(SecurityConfiguration::class, ProblemAuthenticationEntryPoint::class, ApiProblemFactory::class)
+@Import(
+    SecurityConfiguration::class,
+    ProblemAuthenticationEntryPoint::class,
+    ProblemAccessDeniedHandler::class,
+    ApiProblemFactory::class,
+)
 @ActiveProfiles("test")
-class SecurityConfigurationTest(@Autowired private val mockMvc: MockMvc) {
+class SecurityConfigurationTest(
+    @Autowired private val mockMvc: MockMvc,
+    @Autowired private val accessDeniedHandler: ProblemAccessDeniedHandler,
+) {
 
     @Test
     fun `requires authentication for an unmatched route`() {
@@ -32,6 +44,23 @@ class SecurityConfigurationTest(@Autowired private val mockMvc: MockMvc) {
                 header { string("WWW-Authenticate", "Bearer") }
                 header { doesNotExist("Set-Cookie") }
             }
+    }
+
+    @Test
+    fun `renders authorization denial as problem details`() {
+        val request = MockHttpServletRequest().apply {
+            method = "GET"
+            requestURI = "/test/security/forbidden"
+        }
+        val response = MockHttpServletResponse()
+
+        accessDeniedHandler.handle(request, response, AccessDeniedException("sensitive-detail"))
+
+        assertThat(response.status).isEqualTo(403)
+        assertThat(response.contentType).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON_VALUE)
+        assertThat(response.contentAsString)
+            .contains("\"code\":\"authorization_denied\"")
+            .doesNotContain("sensitive-detail")
     }
 
     @ParameterizedTest
