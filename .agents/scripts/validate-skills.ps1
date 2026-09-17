@@ -1,11 +1,16 @@
 $ErrorActionPreference = "Stop"
 
 $repositoryRoot = (Get-Item (Join-Path $PSScriptRoot "..")).Parent.FullName
-$skillsRoot = Join-Path $repositoryRoot ".agents\skills"
+$agentsDirectory = Join-Path $repositoryRoot ".agents"
+$skillsRoot = Join-Path $agentsDirectory "skills"
 $errors = [System.Collections.Generic.List[string]]::new()
 
+if (-not (Test-Path -LiteralPath $agentsDirectory -PathType Container)) {
+    throw "Required agent configuration directory not found: $agentsDirectory"
+}
+
 if (-not (Test-Path -LiteralPath $skillsRoot -PathType Container)) {
-    $errors.Add("Diretório de skills ausente: $skillsRoot")
+    throw "Required skills directory not found: $skillsRoot"
 }
 
 Get-ChildItem -LiteralPath $skillsRoot -Directory | ForEach-Object {
@@ -54,7 +59,7 @@ Get-ChildItem -LiteralPath $skillsRoot -Directory | ForEach-Object {
     }
 }
 
-$indexFile = Join-Path $repositoryRoot ".agents\README.md"
+$indexFile = Join-Path $agentsDirectory "README.md"
 if (-not (Test-Path -LiteralPath $indexFile -PathType Leaf)) {
     $errors.Add("Índice de skills ausente: $indexFile")
 } else {

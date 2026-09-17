@@ -28,6 +28,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
-      - name: Validate skills and index
+      - name: Check required agent validator
         shell: pwsh
-        run: .\.agents/scripts/validate-skills.ps1
+        run: |
+          $validator = Join-Path $env:GITHUB_WORKSPACE ".agents/scripts/validate-skills.ps1"
+          if (-not (Test-Path -LiteralPath $validator -PathType Leaf)) {
+            throw "Required agent validator not found: $validator"
+          }
+          & $validator
