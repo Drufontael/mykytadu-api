@@ -35,6 +35,7 @@ O job `OpenAPI contract` executa em paralelo ao `Verify`:
 
 - em todo pull request, push para `master` e execução manual, o [Redocly CLI](https://redocly.com/docs/cli/commands/lint) `2.45.0` executa `lint` sobre `docs/api/openapi.yaml`;
 - em pull requests, o workflow busca a branch base e o [oasdiff Action](https://github.com/oasdiff/oasdiff-action) `v0.1.11` compara o contrato antigo com o revisado;
+- se a branch base ainda não possuir `docs/api/openapi.yaml`, a comparação é registrada como ignorada; o lint do contrato revisado continua obrigatório;
 - `fail-on: ERR` bloqueia alterações inequivocamente incompatíveis;
 - referências externas são proibidas e o relatório não é enviado para revisão hospedada (`review: false`).
 

@@ -74,8 +74,22 @@ jobs:
         if: github.event_name == 'pull_request'
         run: git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
 
-      - name: Check backward compatibility
+      - name: Check whether base OpenAPI contract exists
         if: github.event_name == 'pull_request'
+        id: base-openapi
+        shell: bash
+        run: |
+          if git cat-file -e "origin/${{ github.base_ref }}:docs/api/openapi.yaml" 2>/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "No OpenAPI contract exists on the base branch; skipping compatibility comparison."
+          fi
+
+      - name: Check backward compatibility
+        if: >
+          github.event_name == 'pull_request' &&
+          steps.base-openapi.outputs.exists == 'true'
         uses: oasdiff/oasdiff-action/breaking@v0.1.11
         with:
           base: "origin/${{ github.base_ref }}:docs/api/openapi.yaml"
