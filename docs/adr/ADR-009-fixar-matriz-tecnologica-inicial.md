@@ -4,7 +4,7 @@
 > **Data:** 2026-09-04
 > **Responsáveis:** equipe MykytaDu API
 > **Sprint/tarefas:** B-1 / B-1-T01
-> **Decisões relacionadas:** D-003
+> **Decisões relacionadas:** D-003; [ADR-003](ADR-003-usar-kotlin-jvm-e-spring-boot.md)
 
 ## Contexto
 

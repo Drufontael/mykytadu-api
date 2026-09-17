@@ -51,7 +51,7 @@ O roadmap apresenta apenas o estado consolidado. Histórico, evidências, bloque
 | Sprint | Estado | Início | Conclusão | Registro |
 | --- | --- | --- | --- | --- |
 | B-1 | **Concluída** | 2026-09-04 | 2026-09-05 | [Prontidão técnica](sprints/B-1.md) |
-| B0.1 | Não iniciada | — | — | a criar no planejamento da sprint |
+| B0.1 | **Em andamento** | 2026-09-15 | — | [Decisões de produto e riscos](sprints/B0.1.md) |
 | B0.2 | Não iniciada | — | — | a criar no planejamento da sprint |
 | B1.1 | Não iniciada | — | — | a criar no planejamento da sprint |
 | B1.2 | Não iniciada | — | — | a criar no planejamento da sprint |
@@ -178,7 +178,7 @@ flowchart LR
 | ID | Tarefa | Restrições | Critérios de aceitação |
 | --- | --- | --- | --- |
 | B0.1-T1 | Definir cadastro e momento da verificação de e-mail | MVP parte de e-mail/senha; login social permanece fora salvo decisão contrária | fluxo nominal e estados `pending`, `active`, `blocked` e `deleted` descritos; comportamento de login antes da verificação definido |
-| B0.1-T2 | Definir política de sessão por plataforma | considerar Android, Desktop e iOS; access token não é persistido no banco | TTLs, audience/client IDs, armazenamento esperado no cliente e revogação documentados |
+| B0.1-T2 | Definir política de sessão por plataforma | considerar Android, Desktop, iOS e Web (WasmJS principal, JavaScript fallback); access token não é persistido no banco nem em `localStorage` no Web | TTLs, audience/client IDs, armazenamento esperado no cliente e revogação documentados |
 | B0.1-T3 | Selecionar provedor de tradução | avaliar custo, idiomas, SLA, residência/retenção de dados e termos de uso | matriz de decisão aprovada; limites e tratamento de conteúdo registrados |
 | B0.1-T4 | Definir origem do conteúdo traduzido | escolher entre texto enviado pelo cliente e consulta backend à AniList | fronteira de responsabilidade, payload e impacto de privacidade aprovados |
 | B0.1-T5 | Definir retenção e exclusão | atender princípio de minimização de dados | TTL de traduções, retenção de auditoria e processo de exclusão/anonimização documentados |

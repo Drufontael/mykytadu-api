@@ -205,7 +205,7 @@ classDiagram
 
 ### 6.2 Invariantes propostas
 
-- e-mail é normalizado antes da comparação e é único entre contas conforme política de exclusão ainda pendente;
+- e-mail é normalizado antes da comparação e é único entre contas não excluídas; a exclusão segue o [ADR-014](adr/ADR-014-politica-de-retencao-e-exclusao.md);
 - toda conta nasce com papel `USER` e nunca sem ao menos um papel válido;
 - apenas credenciais com algoritmo/parâmetros reconhecidos podem autenticar; parâmetros antigos provocam rehash após login válido;
 - token de ação é de uso único, tem finalidade específica e expira;
@@ -274,7 +274,7 @@ O formato serializado usado antes do hash deve ser canônico e versionado para e
 - hit de cache não consome quota externa, mas pode contar como uso da API separadamente;
 - falha do fornecedor não cria entrada de tradução válida;
 - métricas e logs nunca usam o texto como label ou mensagem integral;
-- a retenção de original e tradução segue política ainda pendente.
+- a retenção segue a política aprovada no [ADR-014](adr/ADR-014-politica-de-retencao-e-exclusao.md); o texto original não é persistido e a tradução em cache expira em 30 dias sem renovação por hit.
 
 ## 8. Modelo relacional inicial
 
@@ -324,13 +324,11 @@ erDiagram
         text source_language
         text target_language
         text content_type
-        text original_text
         text translated_text
         text provider
         text model_version
         timestamptz created_at
         timestamptz expires_at
-        timestamptz last_accessed_at
     }
     USAGE_DAILY {
         date day PK
@@ -406,24 +404,41 @@ sequenceDiagram
     participant C as Cliente KMP
     participant I as Identity
     participant D as PostgreSQL
+    participant B as Navegador/cofre seguro
 
     C->>I: POST /auth/login (e-mail, senha)
     I->>D: localizar usuário e credencial
     I->>I: verificar Argon2id e estado
     I->>D: criar sessão com hash do refresh
-    I-->>C: access JWT + refresh opaco
-    C->>I: POST /auth/refresh (refresh atual)
+    alt Web
+        I-->>B: Set-Cookie refresh HttpOnly/Secure/SameSite=Lax
+        I-->>C: access JWT + csrfToken
+    else Android, iOS ou Desktop/JVM
+        I-->>C: access JWT + refresh opaco
+        C->>B: persistir refresh no cofre protegido
+    end
+    C->>I: recurso de negócio + Authorization: Bearer access
+    I->>I: validar iss, aud, exp, nbf, kid e assinatura
+    I-->>C: resposta do recurso
+    C->>I: POST /auth/refresh
+    Note over C,I: Web envia Cookie, X-CSRF-Token e Origin; nativos enviam refresh do cofre
     I->>D: bloquear/consumir sessão atomicamente
     alt token válido e não consumido
         I->>D: persistir novo hash na família
-        I-->>C: novo access + novo refresh
+        alt Web
+            I-->>B: Set-Cookie com novo refresh
+            I-->>C: novo access + csrfToken
+        else Nativo
+            I-->>C: novo access + novo refresh
+            C->>B: substituir refresh no cofre protegido
+        end
     else token reutilizado
         I->>D: revogar família
-        I-->>C: 401 Problem Details (refresh_reused)
+        I-->>C: 401 Problem Details (session_invalid)
     end
 ```
 
-JWT proposto: `sub`, `iss`, `aud`, `iat`, `exp`, `jti` e papéis mínimos. Dados mutáveis ou pessoais desnecessários não devem virar claims.
+O fluxo detalhado, incluindo obtenção do synchronizer token, logout, retry único da requisição original e limpeza da sessão, está em [ADR-011](adr/ADR-011-sessao-web-com-refresh-token-em-cookie.md). JWT: `sub`, `iss`, `aud`, `iat`, `exp`, `jti` e papéis mínimos. Dados mutáveis ou pessoais desnecessários não devem virar claims.
 
 ### 9.3 Tradução com cache
 
@@ -468,7 +483,7 @@ stateDiagram-v2
     DELETED --> [*]
 ```
 
-**Pendente:** exclusão imediata, janela de recuperação ou anonimização. O estado `DELETED` representa intenção de domínio, não substitui o processo de privacidade.
+O estado `DELETED` representa a exclusão lógica imediata, sem janela de recuperação no MVP; credenciais, tokens e atributos pessoais são removidos ou anonimizados conforme o [ADR-014](adr/ADR-014-politica-de-retencao-e-exclusao.md).
 
 ### 10.2 Sessão
 
@@ -601,16 +616,16 @@ Uma extração futura deve preservar a API pública e introduzir contrato intern
 
 ## 16. Decisões pendentes e impacto arquitetural
 
-| ID | Decisão | Impacta | Deve ser resolvida até |
+| ID | Decisão | Impacta | Situação / prazo |
 | --- | --- | --- | --- |
-| P-001 | login somente e-mail/senha ou social | contrato, Identity, possíveis client IDs/OIDC | B0.1 |
-| P-002 | login antes da verificação | estados, autorização e UX | B0.1 |
-| P-003 | provedor de tradução e orçamento | adapter, limites, retenção, observabilidade | B0.1 |
-| P-004 | texto enviado ou consulta AniList pelo backend | contexto, contrato, cache e termos de uso | B0.1 |
-| P-005 | TTL/retenção das traduções | schema, jobs e privacidade | antes de B3.2 |
-| P-006 | exclusão/anonimização de conta | modelo, constraints e operação | antes de B2.3 |
-| P-007 | audiences/client IDs por plataforma | claims e validação JWT | antes de B2.1 |
-| P-008 | hospedagem | deploy, secrets, backup e observabilidade | antes de B4.1 |
+| P-001 | login somente e-mail/senha ou social | contrato, Identity, possíveis client IDs/OIDC | **Resolvida em B0.1** — [ADR-010](adr/ADR-010-cadastro-com-verificacao-de-email.md) |
+| P-002 | login antes da verificação | estados, autorização e UX | **Resolvida em B0.1** — [ADR-010](adr/ADR-010-cadastro-com-verificacao-de-email.md) |
+| P-003 | provedor de tradução e orçamento | adapter, limites, retenção, observabilidade | **Provedor resolvido em B0.1** — [ADR-012](adr/ADR-012-libretranslate-com-adapter-substituivel.md); orçamento operacional pendente da ativação remota e do benchmark |
+| P-004 | texto enviado ou consulta AniList pelo backend | contexto, contrato, cache e termos de uso | **Resolvida em B0.1** — [ADR-013](adr/ADR-013-cliente-envia-descricao-para-traducao.md); retenção resolvida no [ADR-014](adr/ADR-014-politica-de-retencao-e-exclusao.md) |
+| P-005 | TTL/retenção das traduções | schema, jobs e privacidade | **Resolvida em B0.1** — [ADR-014](adr/ADR-014-politica-de-retencao-e-exclusao.md); limpeza funcional antes de B3.2 |
+| P-006 | exclusão/anonimização de conta | modelo, constraints e operação | **Resolvida em B0.1** — [ADR-014](adr/ADR-014-politica-de-retencao-e-exclusao.md); implementação antes de B2.3 |
+| P-007 | audiences/client IDs por plataforma, incluindo Web | claims e validação JWT | **Resolvida em B0.1** — [ADR-011](adr/ADR-011-sessao-web-com-refresh-token-em-cookie.md) |
+| P-008 | hospedagem | deploy, secrets, backup e observabilidade | **Resolvida em B0.1** — [ADR-015](adr/ADR-015-render-como-hospedagem-alvo-da-api.md); ativação remota condicionada a orçamento |
 | P-009 | entrega confiável de e-mail sem broker | transação, reenvio e possível outbox local | antes de B2.1 |
 | P-010 | tecnologia de rate limit multi-instância | consistência operacional | antes de escalar além de uma instância |
 

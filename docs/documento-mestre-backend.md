@@ -242,7 +242,7 @@ Migrations Flyway versionadas seguem `VyyyyMMddHHmmss-descricao.sql`, com `local
 | `identity.roles` | `user_id`, `role` | chave composta; somente USER/ADMIN inicialmente |
 | `identity.sessions` | `id`, `user_id`, `refresh_token_hash`, `token_family_id`, `expires_at`, `revoked_at`, metadados mínimos | suporta rotação, logout e detecção de reuse |
 | `identity.action_tokens` | `id`, `user_id`, `type`, `token_hash`, `expires_at`, `consumed_at` | verificação de e-mail e reset de senha |
-| `translation.translations` | `id`, `content_hash`, idiomas, tipo, texto original, texto traduzido, provider/model, timestamps | unique sobre chave lógica; política de retenção configurável |
+| `translation.translations` | `id`, `content_hash`, idiomas, tipo, texto traduzido, provider/model, `created_at`, `expires_at` | unique sobre chave lógica; texto original não é persistido; cache expira em 30 dias |
 | `translation.usage_daily` | `day`, `principal_id`, contadores de caracteres e requisições | opcional no primeiro deploy; útil para quota e custo |
 
 ### 7.3 O que não armazenar agora
@@ -258,7 +258,7 @@ Migrations Flyway versionadas seguem `VyyyyMMddHHmmss-descricao.sql`, com `local
 
 - UUIDv7 para entidades persistidas, aproveitando ordenação temporal sem IDs enumeráveis.
 - `Instant`/UTC no backend e `timestamptz` no PostgreSQL.
-- usuário excluído deve passar por processo de anonimização/remoção conforme política a definir; um booleano `deleted` isolado não resolve privacidade.
+- usuário excluído é marcado como `deleted`, perde acesso imediatamente e tem credenciais, tokens e atributos pessoais removidos ou anonimizados conforme a política aprovada no [ADR-014](adr/ADR-014-politica-de-retencao-e-exclusao.md); um booleano isolado não resolve privacidade.
 - índices devem nascer das consultas previstas, não de decoração arquitetural.
 
 ## 8. Contrato HTTP inicial
@@ -324,7 +324,7 @@ Para desbloquear a Sprint 12 do frontend, o backend não precisa estar totalment
 
 1. OpenAPI 3.1 versionado com schemas, exemplos e erros.
 2. Fluxos de registro, login, refresh, logout e recuperação.
-3. Política de armazenamento de tokens por plataforma do app.
+3. Política de armazenamento de tokens para Android, Desktop/JVM, iOS e Web (WasmJS principal e JavaScript fallback), respeitando a proibição de tokens sensíveis em `localStorage`.
 4. Endpoint e limites de tradução.
 5. códigos de erro estáveis.
 6. ambientes e URLs base.
@@ -339,12 +339,12 @@ Não é recomendado compartilhar classes Kotlin/JVM diretamente com o KMP. O con
 
 - `local`: aplicação + PostgreSQL via Compose e provedor de tradução fake/sandbox;
 - `test`: Testcontainers e adapters controlados;
-- `staging`: integração real, dados não produtivos e limites baixos;
-- `production`: segredos gerenciados, TLS, backups e observabilidade.
+- `staging`: alvo no Render, com dados não produtivos, limites baixos e ambiente isolado;
+- `production`: alvo no Render, com segredos gerenciados, TLS, backups e observabilidade; ativação depende de orçamento.
 
 ### 10.2 Configuração
 
-- variáveis de ambiente ou secret manager;
+- variáveis de ambiente, grupos de ambiente ou secret manager; no Render, secrets não ficam no repositório nem na imagem;
 - profiles apenas para composição técnica, nunca para alterar regras de negócio;
 - Flyway executado de forma controlada no deploy;
 - endpoint de liveness separado de readiness;
@@ -381,7 +381,7 @@ Não é recomendado compartilhar classes Kotlin/JVM diretamente com o KMP. O con
 ### Fase B0 — Decisões e contrato
 
 - validar este documento;
-- decidir provedor de tradução;
+- validar o provedor inicial e seu benchmark;
 - fechar fluxos de autenticação;
 - criar ADRs das decisões centrais;
 - produzir OpenAPI inicial e mocks para o frontend.
@@ -416,16 +416,10 @@ Não é recomendado compartilhar classes Kotlin/JVM diretamente com o KMP. O con
 
 ## 13. Decisões pendentes
 
-Estas respostas alteram o contrato ou os dados e devem ser resolvidas antes da implementação correspondente:
+Estas respostas alteram o contrato ou os dados e devem ser resolvidas antes da implementação correspondente. As decisões sobre cadastro, verificação, audiences/client IDs e retenção/exclusão foram resolvidas em [ADR-010](adr/ADR-010-cadastro-com-verificacao-de-email.md), [ADR-011](adr/ADR-011-sessao-web-com-refresh-token-em-cookie.md) e [ADR-014](adr/ADR-014-politica-de-retencao-e-exclusao.md).
 
-1. **Cadastro:** haverá apenas e-mail/senha no primeiro release ou login social já é requisito?
-2. **Verificação:** o e-mail deve ser confirmado antes do primeiro login ou apenas antes de ações sensíveis?
-3. **Tradução:** qual provedor, orçamento e política de conteúdo/dados serão aceitos?
-4. **Fonte:** o backend traduzirá apenas textos enviados pelo cliente ou também consultará a AniList diretamente?
-5. **Persistência:** traduções podem armazenar o texto original e traduzido indefinidamente ou exigem TTL/anonimização?
-6. **Conta:** exclusão será imediata, com período de recuperação, ou anonimização?
-7. **Clientes:** Android, Desktop e iOS usarão o mesmo audience de token ou audiences/client IDs distintos?
-8. **Operação:** onde staging e produção serão hospedados?
+1. **Tradução:** o provedor inicial foi definido como LibreTranslate self-hosted com Argos, com adapter substituível em [ADR-012](adr/ADR-012-libretranslate-com-adapter-substituivel.md); orçamento operacional e validação antes da produção permanecem pendentes.
+2. **Operação:** Render foi definido como hospedagem-alvo da API no [ADR-015](adr/ADR-015-render-como-hospedagem-alvo-da-api.md); ativação, domínio, região e orçamento permanecem pendentes.
 
 ## 14. Critérios de aceite desta especificação inicial
 
@@ -451,11 +445,11 @@ Estas respostas alteram o contrato ou os dados e devem ser resolvidas antes da i
 
 | ID | Decisão | Estado |
 | --- | --- | --- |
-| D-001 | Adotar monólito modular | **aprovada** |
-| D-002 | Separar Identity e Translation por módulos e schemas | **aprovada** |
-| D-003 | Usar Kotlin/JVM + Spring Boot | **aprovada** |
-| D-004 | Usar PostgreSQL como única persistência inicial | **aprovada** |
-| D-005 | Usar JWT curto + refresh opaco rotativo | **aprovada** |
-| D-006 | Usar OpenAPI como fonte da verdade dos contratos | **aprovada** |
-| D-007 | Não compartilhar modelos compilados entre backend JVM e cliente KMP | **aprovada** |
-| D-008 | Nomear o projeto e repositório como `mykytadu-api` | **aprovada** |
+| D-001 | [Adotar monólito modular](adr/ADR-001-adotar-monolito-modular.md) | **aprovada** |
+| D-002 | [Separar Identity e Translation por módulos e schemas](adr/ADR-002-separar-identity-e-translation.md) | **aprovada** |
+| D-003 | [Usar Kotlin/JVM + Spring Boot](adr/ADR-003-usar-kotlin-jvm-e-spring-boot.md); matriz detalhada em [ADR-009](adr/ADR-009-fixar-matriz-tecnologica-inicial.md) | **aprovada** |
+| D-004 | [Usar PostgreSQL como única persistência inicial](adr/ADR-004-usar-postgresql-como-persistencia-inicial.md) | **aprovada** |
+| D-005 | [Usar JWT curto + refresh opaco rotativo](adr/ADR-005-usar-jwt-curto-e-refresh-rotativo.md); Web detalhado em [ADR-011](adr/ADR-011-sessao-web-com-refresh-token-em-cookie.md) | **aprovada** |
+| D-006 | [Usar OpenAPI como fonte da verdade dos contratos](adr/ADR-006-usar-openapi-como-fonte-da-verdade.md) | **aprovada** |
+| D-007 | [Não compartilhar modelos compilados entre backend JVM e cliente KMP](adr/ADR-007-nao-compartilhar-modelos-compilados-com-kmp.md) | **aprovada** |
+| D-008 | [Nomear o projeto e repositório como `mykytadu-api`](adr/ADR-008-nomear-projeto-e-repositorio-mykytadu-api.md) | **aprovada** |
