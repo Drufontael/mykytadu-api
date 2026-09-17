@@ -1,7 +1,7 @@
 # MykytaDu API — Problem Details
 
 > **Status:** contrato técnico inicial; catálogo aprovado na B0.2-T3
-> **Versão:** 0.1
+> **Versão:** 0.2
 > **Data de referência:** 4 de setembro de 2026
 
 ## 1. Formato
@@ -52,6 +52,7 @@ Exemplo de validação:
 | `request_validation_failed` | 400 | corpo recebido e parseado, mas com campos inválidos |
 | `internal_error` | 500 | falha inesperada sem detalhe interno exposto |
 | `authentication_required` | 401 | credencial válida ausente em uma superfície protegida |
+| `authorization_denied` | 403 | principal autenticado sem autorização para o recurso |
 
 O catálogo de domínio é versionado na B0.2 e evoluído junto ao OpenAPI. Não
 reutilizar `detail`, título ou mensagem de campo como chave de decisão no
@@ -67,6 +68,6 @@ cliente.
 
 ## 4. Limites atuais
 
-O handler MVC cobre validação de corpo e exceções lançadas por controllers. Falhas de autenticação produzidas antes do MVC usam um `AuthenticationEntryPoint` dedicado e o mesmo factory de Problem Details.
+O handler MVC cobre validação de corpo e exceções lançadas por controllers. Falhas de autenticação produzidas antes do MVC usam um `AuthenticationEntryPoint` dedicado; falhas de autorização usam um `AccessDeniedHandler`. Ambos compartilham o mesmo factory de Problem Details.
 
 Não foram criados endpoints de negócio para esta infraestrutura. Os endpoints sob `/test/problem-details` existem somente como classes privadas no source set de teste.

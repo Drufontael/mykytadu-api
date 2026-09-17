@@ -16,6 +16,7 @@ class SecurityConfiguration {
     fun securityFilterChain(
         http: HttpSecurity,
         authenticationEntryPoint: ProblemAuthenticationEntryPoint,
+        accessDeniedHandler: ProblemAccessDeniedHandler,
     ): SecurityFilterChain {
         http
             .csrf { it.disable() }
@@ -24,7 +25,10 @@ class SecurityConfiguration {
             .logout { it.disable() }
             .requestCache { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
-            .exceptionHandling { it.authenticationEntryPoint(authenticationEntryPoint) }
+            .exceptionHandling {
+                it.authenticationEntryPoint(authenticationEntryPoint)
+                it.accessDeniedHandler(accessDeniedHandler)
+            }
             .authorizeHttpRequests {
                 it.requestMatchers(
                     HttpMethod.GET,

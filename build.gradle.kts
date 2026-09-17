@@ -88,6 +88,25 @@ tasks.withType<Test> {
     useJUnitPlatform()
 }
 
+val npxExecutable = if (System.getProperty("os.name").lowercase().contains("win")) "npx.cmd" else "npx"
+
+tasks.register<Exec>("openApiLint") {
+    description = "Validates the OpenAPI contract with the pinned Redocly CLI."
+    group = "verification"
+    workingDir(projectDir)
+    commandLine(npxExecutable, "--yes", "@redocly/cli@2.45.0", "lint", "docs/api/openapi.yaml")
+}
+
+tasks.named<org.springframework.boot.gradle.tasks.bundling.BootBuildImage>("bootBuildImage") {
+    imageName.set("mykytadu-api:${project.version}")
+    builder.set(
+        "paketobuildpacks/builder-noble-java-tiny@sha256:" +
+            "7688d7b91bd173fbad6124797e5e5c73c848ac3143f9c0f5046ec9e5f4127673",
+    )
+    environment.set(mapOf("BP_JVM_VERSION" to "25"))
+    dependsOn("check")
+}
+
 tasks.named("check") {
-    dependsOn("koverXmlReport")
+    dependsOn("koverXmlReport", "openApiLint")
 }

@@ -13,17 +13,16 @@ class ApiProblemFactory {
 
     fun create(
         status: HttpStatus,
-        code: String,
-        title: String,
-        detail: String,
+        code: ProblemCode,
         request: HttpServletRequest,
         traceId: String = currentTraceId(),
         errors: List<*> = emptyList<Any>(),
+        detail: String = code.defaultDetail,
     ): ProblemDetail = ProblemDetail.forStatusAndDetail(status, detail).apply {
-        this.title = title
-        type = URI.create("urn:mykytadu:problem:$code")
+        title = code.defaultTitle
+        type = URI.create("urn:mykytadu:problem:${code.wireValue}")
         instance = URI.create(request.requestURI)
-        setProperty("code", code)
+        setProperty("code", code.wireValue)
         setProperty("traceId", traceId)
         setProperty("errors", errors)
     }

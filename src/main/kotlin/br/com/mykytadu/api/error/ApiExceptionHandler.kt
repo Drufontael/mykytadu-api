@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ProblemDetail
+import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
@@ -19,13 +20,19 @@ class ApiExceptionHandler(private val problemFactory: ApiProblemFactory) {
 
         return problemFactory.create(
             status = HttpStatus.BAD_REQUEST,
-            code = "request_validation_failed",
-            title = "Request validation failed",
-            detail = "One or more fields are invalid.",
+            code = ProblemCode.REQUEST_VALIDATION_FAILED,
             request = request,
             errors = errors,
         )
     }
+
+    @ExceptionHandler(HttpMessageNotReadableException::class)
+    fun handleUnreadableRequest(request: HttpServletRequest): ProblemDetail = problemFactory.create(
+        status = HttpStatus.BAD_REQUEST,
+        code = ProblemCode.REQUEST_VALIDATION_FAILED,
+        request = request,
+        detail = "The request body is missing or malformed.",
+    )
 
     @ExceptionHandler(Exception::class)
     fun handleUnexpected(exception: Exception, request: HttpServletRequest): ProblemDetail {
@@ -34,9 +41,7 @@ class ApiExceptionHandler(private val problemFactory: ApiProblemFactory) {
 
         return problemFactory.create(
             status = HttpStatus.INTERNAL_SERVER_ERROR,
-            code = "internal_error",
-            title = "Internal server error",
-            detail = "An unexpected error occurred.",
+            code = ProblemCode.INTERNAL_ERROR,
             request = request,
             traceId = traceId,
         )

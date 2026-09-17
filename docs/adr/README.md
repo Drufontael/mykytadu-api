@@ -29,7 +29,8 @@ ADRs complementares:
 - [ADR-012 — LibreTranslate inicialmente com adapter substituível](ADR-012-libretranslate-com-adapter-substituivel.md), decisão da B0.1-T3;
 - [ADR-013 — Cliente envia descrição para tradução](ADR-013-cliente-envia-descricao-para-traducao.md), decisão da B0.1-T4;
 - [ADR-014 — Política de retenção e exclusão de dados](ADR-014-politica-de-retencao-e-exclusao.md), decisão da B0.1-T5;
-- [ADR-015 — Render como hospedagem-alvo da API](ADR-015-render-como-hospedagem-alvo-da-api.md), decisão da B0.1-T6.
+- [ADR-015 — Render como hospedagem-alvo da API](ADR-015-render-como-hospedagem-alvo-da-api.md), decisão da B0.1-T6;
+- [ADR-016 — Construir imagem OCI com Cloud Native Buildpacks](ADR-016-construir-imagem-oci-com-buildpacks.md), decisão da B1.1-T4.
 
 ## 2. Quando criar um ADR
 

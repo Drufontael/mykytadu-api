@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: MykytaDu API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     Contrato HTTP inicial do MykytaDu API.
 
@@ -383,6 +383,8 @@ paths:
                   $ref: '#/components/examples/UserProfile'
         '401':
           $ref: '#/components/responses/AuthenticationProblem'
+        '403':
+          $ref: '#/components/responses/AuthorizationProblem'
         '500':
           $ref: '#/components/responses/InternalProblem'
     patch:
@@ -789,6 +791,7 @@ components:
         - email_verification_required
         - session_invalid
         - csrf_invalid
+        - authorization_denied
         - rate_limit_exceeded
         - translation_quota_exceeded
         - translation_provider_failed
@@ -965,6 +968,15 @@ components:
           examples:
             default:
               $ref: '#/components/examples/CsrfProblem'
+    AuthorizationProblem:
+      description: Principal autenticado sem autorização para o recurso
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            default:
+              $ref: '#/components/examples/AuthorizationDeniedProblem'
     RateLimitProblem:
       description: Limite operacional excedido
       headers:
@@ -1175,6 +1187,16 @@ components:
         instance: /api/v1/auth/refresh
         code: csrf_invalid
         traceId: 87d66d5f-19c7-49ac-9dbe-c9d6bbf65bdc
+        errors: []
+    AuthorizationDeniedProblem:
+      value:
+        type: urn:mykytadu:problem:authorization_denied
+        title: Access denied
+        status: 403
+        detail: The authenticated principal is not authorized for this resource.
+        instance: /api/v1/admin/example
+        code: authorization_denied
+        traceId: 6a3f4a0d-55a2-4d13-8e2d-4dc0b46bb4c2
         errors: []
     RateLimitProblem:
       value:

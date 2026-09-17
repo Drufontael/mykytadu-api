@@ -23,6 +23,21 @@ class ApplicationArchitectureTests {
     }
 
     @Test
+    fun `exposes only the named public boundaries of domain modules`() {
+        val identityInterfaces = modules.getModuleByName("identity")
+            .orElseThrow()
+            .namedInterfaces
+            .map { it.name }
+        val translationInterfaces = modules.getModuleByName("translation")
+            .orElseThrow()
+            .namedInterfaces
+            .map { it.name }
+
+        assertThat(identityInterfaces).contains("api")
+        assertThat(translationInterfaces).contains("api")
+    }
+
+    @Test
     fun `accepts the current module arrangement`() {
         modules.verify()
     }

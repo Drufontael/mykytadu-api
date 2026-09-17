@@ -112,6 +112,20 @@ flowchart TB
 
 Chamadas síncronas usam interfaces de aplicação. Eventos internos só são usados quando existe desacoplamento real; por exemplo, desativar usuário pode publicar `UserDisabled`, consumido para revogar sessões. Não há broker no MVP.
 
+### 4.2 Superfícies públicas dos módulos
+
+As superfícies públicas adicionais são declaradas como named interfaces do Spring Modulith. A dependência entre módulos deve apontar para a interface nomeada, nunca para um pacote interno inteiro.
+
+| Módulo | Superfície pública | Regra |
+| --- | --- | --- |
+| `app` | composição e bootstrap; não oferece API de domínio | outros módulos não dependem de `app` |
+| `api` | pacote-base `br.com.mykytadu.api` para a borda comum | subpacotes de erro, segurança e observabilidade são internos ao módulo |
+| `identity` | `br.com.mykytadu.identity.api` (`identity :: api`) | credenciais, persistência, domínio e web permanecem internos |
+| `translation` | `br.com.mykytadu.translation.api` (`translation :: api`) | cache, fornecedor, persistência, domínio e web permanecem internos |
+| `shared` | tipos técnicos mínimos do pacote-base, quando necessários | não recebe regras de negócio nem dependências de outros módulos |
+
+No estado atual, as named interfaces de `identity` e `translation` estabelecem a fronteira para os próximos casos de uso; tipos só devem ser adicionados quando houver consumidor real. O teste arquitetural mantém uma fixture negativa que comprova a rejeição de acesso a pacote interno mesmo quando a dependência para a named interface é permitida.
+
 ## 5. Camadas por módulo
 
 ```text
@@ -421,7 +435,7 @@ sequenceDiagram
     I->>I: validar iss, aud, exp, nbf, kid e assinatura
     I-->>C: resposta do recurso
     C->>I: POST /auth/refresh
-    Note over C,I: Web envia Cookie, X-CSRF-Token e Origin; nativos enviam refresh do cofre
+    Note over C,I: Web envia Cookie, X-CSRF-Token e Origin, enquanto nativos enviam refresh do cofre
     I->>D: bloquear/consumir sessão atomicamente
     alt token válido e não consumido
         I->>D: persistir novo hash na família
@@ -602,6 +616,11 @@ flowchart TB
 ```
 
 A aplicação deve ser stateless quanto a processo; sessão durável fica no PostgreSQL. Escalar réplicas é possível sem alterar o domínio, desde que rotação, rate limit e concorrência preservem consistência. A tecnologia concreta de rate limit distribuído permanece decisão operacional; Redis não é pressuposto.
+
+A embalagem local da aplicação é feita como imagem OCI pelo `bootBuildImage`, com
+Java 25 fornecido pelo builder Paketo fixado por digest. Configurações de banco,
+segredos e demais valores de ambiente entram somente no runtime; consulte
+[Imagem OCI](operacao/imagem-oci.md).
 
 ## 15. Evolução arquitetural esperada
 

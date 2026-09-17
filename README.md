@@ -9,6 +9,7 @@ Pré-requisitos:
 - Java 25 disponível no terminal;
 - Docker Desktop ou Docker Engine em execução;
 - Docker Compose v2;
+- Node.js 22.12.0 ou superior com `npx` disponível;
 - Git.
 
 No PowerShell, valide a máquina e execute todos os gates:
@@ -17,6 +18,8 @@ No PowerShell, valide a máquina e execute todos os gates:
 java -version
 docker version
 docker compose version
+node --version
+npx --version
 .\gradlew.bat --version
 .\gradlew.bat check --no-daemon --stacktrace
 ```
@@ -36,7 +39,9 @@ Para parar a aplicação, use `Ctrl+C`. O PostgreSQL e seus dados locais permane
 
 ## Documentação
 
+- [guia de contribuição, comandos locais e equivalência com o CI](CONTRIBUTING.md);
 - [ambiente local, ciclo de uso, reset e troubleshooting](docs/ambiente-local.md);
+- [construção e execução da imagem OCI](docs/operacao/imagem-oci.md);
 - [integração contínua](docs/ci.md);
 - [estratégia de testes](docs/testes.md);
 - [qualidade estática e cobertura](docs/qualidade.md);

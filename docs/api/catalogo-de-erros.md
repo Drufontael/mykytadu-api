@@ -1,7 +1,7 @@
 # Catálogo inicial de erros HTTP
 
 > **Status:** Aprovado
-> **Versão:** 0.1
+> **Versão:** 0.2
 > **Data de referência:** 2026-09-17
 > **Fonte contratual:** [OpenAPI 3.1](openapi.yaml)
 
@@ -40,6 +40,7 @@ Para erros sem campo específico, `errors` é uma lista vazia.
 | `email_verification_required` | 401 | login de conta pendente | orientar verificação de e-mail sem depender de `detail` | vazio |
 | `session_invalid` | 401 | refresh ou sessão inválida | limpar sessão local e exigir novo login | vazio |
 | `csrf_invalid` | 403 | refresh/logout Web | obter novo synchronizer token e repetir uma vez; depois exigir login | vazio |
+| `authorization_denied` | 403 | principal autenticado sem permissão | informar acesso negado sem expor regra interna | vazio |
 | `rate_limit_exceeded` | 429 | operações limitadas | respeitar `Retry-After` e aplicar retry controlado | vazio |
 | `translation_quota_exceeded` | 429 | tradução | respeitar `Retry-After` e preservar o texto original | vazio |
 | `translation_provider_failed` | 502 | tradução | preservar o texto original e informar indisponibilidade | vazio |

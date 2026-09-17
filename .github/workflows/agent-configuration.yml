@@ -1,0 +1,44 @@
+name: Agent configuration
+
+on:
+  pull_request:
+    paths:
+      - AGENTS.md
+      - .agents/**
+      - .github/workflows/agent-configuration.yml
+  push:
+    branches:
+      - master
+    paths:
+      - AGENTS.md
+      - .agents/**
+      - .github/workflows/agent-configuration.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate agent configuration
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Check required agent validator
+        shell: pwsh
+        run: |
+          $agents = Join-Path $env:GITHUB_WORKSPACE ".agents"
+          $validator = Join-Path $agents "scripts/validate-skills.ps1"
+
+          if (-not (Test-Path -LiteralPath $agents -PathType Container)) {
+            throw "Required .agents directory not found: $agents"
+          }
+
+          if (-not (Test-Path -LiteralPath $validator -PathType Leaf)) {
+            throw "Required agent validator not found: $validator"
+          }
+          & $validator

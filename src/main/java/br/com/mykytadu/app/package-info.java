@@ -3,6 +3,6 @@
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "Application",
-        allowedDependencies = {"api", "identity", "translation", "shared"}
+        allowedDependencies = {"api", "identity :: api", "translation :: api", "shared"}
 )
 package br.com.mykytadu.app;
