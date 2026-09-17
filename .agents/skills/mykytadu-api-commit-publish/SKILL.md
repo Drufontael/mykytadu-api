@@ -51,7 +51,14 @@ Se uma validação necessária falhar, não faça commit nem push. Informe se a 
 2. Revise `git diff --cached` integralmente.
 3. Confirme que o stage não contém segredo, configuração local, artefato gerado ou mudança fora do escopo.
 4. Se não houver alteração pertinente, encerre sem criar commit vazio.
-5. Siga a convenção observada no histórico do repositório e escreva mensagem concisa e fiel ao conteúdo.
+5. Escreva a mensagem conforme o padrão de commits adotado no guia [Padrões de commits](https://github.com/iuricode/padroes-de-commits), combinando Conventional Commits com o emoji correspondente ao tipo:
+   - formato obrigatório da primeira linha: `:emoji: tipo(escopo-opcional): descrição curta`;
+   - use um tipo coerente com a alteração, preferencialmente entre `feat`, `fix`, `docs`, `test`, `build`, `perf`, `style`, `refactor`, `chore`, `ci`, `raw`, `cleanup` e `remove`;
+   - o escopo deve identificar a task, módulo ou área quando isso tornar a mensagem mais precisa, por exemplo `B0.1-T5`;
+   - a descrição deve ser sucinta, específica e fiel ao conteúdo; prefira no máximo quatro palavras na primeira linha quando isso não reduzir a clareza;
+   - não use emoji ou tipo incompatíveis com os arquivos alterados;
+   - corpo e rodapé são opcionais, devem ficar separados da primeira linha por uma linha em branco e podem registrar motivo, impacto, revisão ou referência da task.
+   Exemplos para este repositório: `:books: docs(B0.1-T5): definir retenção`, `:lock: docs(B0.1-T2): proteger sessão Web`, `:bricks: ci: ajustar pipeline`.
 6. Crie um commit novo. Não use `--amend` sem solicitação explícita.
 
 Prefira um commit por unidade aceita e coerente. Não fragmente artificialmente arquivos que só fazem sentido juntos e não misture tasks independentes.
