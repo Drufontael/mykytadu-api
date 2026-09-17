@@ -617,6 +617,11 @@ flowchart TB
 
 A aplicação deve ser stateless quanto a processo; sessão durável fica no PostgreSQL. Escalar réplicas é possível sem alterar o domínio, desde que rotação, rate limit e concorrência preservem consistência. A tecnologia concreta de rate limit distribuído permanece decisão operacional; Redis não é pressuposto.
 
+A embalagem local da aplicação é feita como imagem OCI pelo `bootBuildImage`, com
+Java 25 fornecido pelo builder Paketo fixado por digest. Configurações de banco,
+segredos e demais valores de ambiente entram somente no runtime; consulte
+[Imagem OCI](operacao/imagem-oci.md).
+
 ## 15. Evolução arquitetural esperada
 
 | Estágio | Forma | Condição de entrada | Evidência para evoluir |
