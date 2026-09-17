@@ -1,6 +1,6 @@
 # MykytaDu API — Problem Details
 
-> **Status:** contrato técnico inicial
+> **Status:** contrato técnico inicial; catálogo aprovado na B0.2-T3
 > **Versão:** 0.1
 > **Data de referência:** 4 de setembro de 2026
 
@@ -18,6 +18,11 @@ Erros HTTP da aplicação usam `application/problem+json`, conforme RFC 9457 e o
 | `code` | código estável usado pelo cliente |
 | `traceId` | identificador para correlação e suporte |
 | `errors` | lista de violações específicas; vazia quando não aplicável |
+
+O catálogo inicial de códigos, status, ações do cliente e exemplos está em
+[`docs/api/catalogo-de-erros.md`](api/catalogo-de-erros.md). O
+[`docs/api/openapi.yaml`](api/openapi.yaml) é a fonte contratual e deve ser
+atualizado junto com qualquer alteração de código.
 
 Exemplo de validação:
 
@@ -48,7 +53,9 @@ Exemplo de validação:
 | `internal_error` | 500 | falha inesperada sem detalhe interno exposto |
 | `authentication_required` | 401 | credencial válida ausente em uma superfície protegida |
 
-O catálogo de domínio será definido na B0.2 e evoluído junto ao OpenAPI. Não reutilizar `detail`, título ou mensagem de campo como chave de decisão no cliente.
+O catálogo de domínio é versionado na B0.2 e evoluído junto ao OpenAPI. Não
+reutilizar `detail`, título ou mensagem de campo como chave de decisão no
+cliente.
 
 ## 3. Segurança e correlação
 

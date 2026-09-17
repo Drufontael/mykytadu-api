@@ -57,8 +57,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
               examples:
-                emailAlreadyRegistered:
-                  $ref: '#/components/examples/EmailAlreadyRegisteredProblem'
+                registrationRejected:
+                  $ref: '#/components/examples/RegistrationRejectedProblem'
         '429':
           $ref: '#/components/responses/RateLimitProblem'
         '500':
@@ -777,6 +777,24 @@ components:
           type: boolean
           example: true
 
+    ProblemCode:
+      type: string
+      description: Código estável usado pelo cliente; nunca substituir por `detail`, `title` ou `errors[].message`.
+      enum:
+        - request_validation_failed
+        - registration_rejected
+        - invalid_action_token
+        - authentication_required
+        - invalid_credentials
+        - email_verification_required
+        - session_invalid
+        - csrf_invalid
+        - rate_limit_exceeded
+        - translation_quota_exceeded
+        - translation_provider_failed
+        - translation_provider_timeout
+        - internal_error
+
     ProblemDetails:
       type: object
       additionalProperties: false
@@ -806,7 +824,7 @@ components:
           description: Path da requisição sem query string.
           example: /api/v1/auth/register
         code:
-          type: string
+          $ref: '#/components/schemas/ProblemCode'
           description: Código estável usado pelo cliente.
           example: request_validation_failed
         traceId:
@@ -1118,14 +1136,14 @@ components:
         code: email_verification_required
         traceId: 4ba6bf23-1fe0-42fc-9a4c-3df9ea19fa71
         errors: []
-    EmailAlreadyRegisteredProblem:
+    RegistrationRejectedProblem:
       value:
-        type: urn:mykytadu:problem:email_already_registered
-        title: Account cannot be created
+        type: urn:mykytadu:problem:registration_rejected
+        title: Registration unavailable
         status: 409
-        detail: The account cannot be created with the supplied data.
+        detail: The account cannot be created with the supplied data at this time.
         instance: /api/v1/auth/register
-        code: email_already_registered
+        code: registration_rejected
         traceId: 71c0e13d-a3d8-45c3-8f68-e5a7e04b5bb1
         errors: []
     InvalidActionTokenProblem:
