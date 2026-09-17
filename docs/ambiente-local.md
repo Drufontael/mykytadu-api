@@ -210,3 +210,47 @@ Regras:
 - não editar uma migration já aplicada em ambiente permanente;
 - correções usam uma nova migration e avançam o schema;
 - Hibernate valida o modelo, mas não cria nem altera objetos (`ddl-auto: validate`).
+
+### 7.1 Ownership por módulo
+
+O projeto usa uma única localização Flyway (`src/main/resources/db/migration`),
+mas cada migration funcional tem um único owner lógico identificado no início da
+descrição do arquivo:
+
+```text
+VyyyyMMddHHmmss-identity_descricao.sql
+VyyyyMMddHHmmss-translation_descricao.sql
+VyyyyMMddHHmmss-platform_descricao.sql
+```
+
+`identity_` só pode alterar objetos do schema `identity`; `translation_` só pode
+alterar objetos de `translation`; `platform_` é reservado para objetos técnicos
+que não pertençam a um domínio. Nenhuma migration funcional cria tabelas de
+negócio em `public` ou foreign keys entre `identity` e `translation`.
+
+`V20260904184904-create_identity_and_translation_schemas.sql` é a exceção
+imutável de bootstrap herdada da B-1: seu único objetivo é criar os dois schemas.
+Migrations novas não devem repetir esse padrão nem editar o arquivo existente.
+
+### 7.2 Ordem e revisão
+
+Flyway aplica as versões pela sequência numérica do timestamp. Antes de abrir
+uma alteração de banco, a revisão deve:
+
+1. consultar a maior versão no diretório e no `flyway_schema_history` do ambiente
+   de referência;
+2. reservar um timestamp único em `America/Sao_Paulo` e conferir o nome completo;
+3. revisar owner, schema-alvo, constraints, índices, tipos de ID/tempo e ausência
+   de dados sensíveis no SQL;
+4. aplicar a migration em PostgreSQL limpo e atualizar um banco já na versão
+   anterior, sem intervenção manual;
+5. confirmar checksum, estado do Flyway e ausência de tabelas de negócio em
+   `public`;
+6. registrar a evidência na sprint e, se houver mudança arquitetural, contratual,
+   de segurança ou operacional, apontar o ADR correspondente.
+
+Rollback destrutivo não é automático. Uma correção para migration aplicada deve
+ser uma nova versão, com procedimento de recuperação e backup compatível com o
+ambiente. O teste `MigrationConventionTests` executado pelo `check` verifica o
+padrão de nome, a ordenação, a unicidade das versões e o owner declarado das
+migrations funcionais.

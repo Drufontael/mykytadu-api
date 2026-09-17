@@ -29,7 +29,10 @@ class DatabaseMigrationIntegrationTests(
         assertThat(postgres.dockerImageName).isEqualTo("postgres:18.6-trixie")
         assertThat(currentDatabase()).isEqualTo("test")
         assertThat(domainSchemas()).containsExactlyInAnyOrder("identity", "translation")
-        assertThat(successfulMigrations()).isOne()
+        assertThat(successfulMigrationVersions()).containsExactlyInAnyOrder(
+            "20260904184904",
+            "20260917193036",
+        )
         assertThat(businessTablesInPublicSchema()).isZero()
 
         mockMvc.get("/actuator/health/liveness").andExpect { status { isOk() } }
@@ -51,10 +54,10 @@ class DatabaseMigrationIntegrationTests(
     private fun currentDatabase(): String? =
         jdbcTemplate.queryForObject("SELECT current_database()", String::class.java)
 
-    private fun successfulMigrations(): Int = jdbcTemplate.queryForObject(
-        "SELECT count(*) FROM flyway_schema_history WHERE success",
-        Int::class.java,
-    ) ?: 0
+    private fun successfulMigrationVersions(): Set<String> = jdbcTemplate.queryForList(
+        "SELECT version FROM flyway_schema_history WHERE success",
+        String::class.java,
+    ).filterNotNull().toSet()
 
     private fun businessTablesInPublicSchema(): Int = jdbcTemplate.queryForObject(
         """
