@@ -1,12 +1,21 @@
 $ErrorActionPreference = "Stop"
 
-$repositoryRoot = (Get-Item (Join-Path $PSScriptRoot "..")).Parent.FullName
+$repositoryRoot = if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_WORKSPACE)) {
+    if (-not (Test-Path -LiteralPath $env:GITHUB_WORKSPACE -PathType Container)) {
+        throw "GitHub workspace directory not found: $env:GITHUB_WORKSPACE"
+    }
+
+    (Resolve-Path -LiteralPath $env:GITHUB_WORKSPACE).Path
+} else {
+    (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "../..")).Path
+}
+
 $agentsDirectory = Join-Path $repositoryRoot ".agents"
 $skillsRoot = Join-Path $agentsDirectory "skills"
 $errors = [System.Collections.Generic.List[string]]::new()
 
 if (-not (Test-Path -LiteralPath $agentsDirectory -PathType Container)) {
-    throw "Required agent configuration directory not found: $agentsDirectory"
+    throw "Agent configuration directory not found: $agentsDirectory"
 }
 
 if (-not (Test-Path -LiteralPath $skillsRoot -PathType Container)) {

@@ -31,7 +31,13 @@ jobs:
       - name: Check required agent validator
         shell: pwsh
         run: |
-          $validator = Join-Path $env:GITHUB_WORKSPACE ".agents/scripts/validate-skills.ps1"
+          $agents = Join-Path $env:GITHUB_WORKSPACE ".agents"
+          $validator = Join-Path $agents "scripts/validate-skills.ps1"
+
+          if (-not (Test-Path -LiteralPath $agents -PathType Container)) {
+            throw "Required .agents directory not found: $agents"
+          }
+
           if (-not (Test-Path -LiteralPath $validator -PathType Leaf)) {
             throw "Required agent validator not found: $validator"
           }
