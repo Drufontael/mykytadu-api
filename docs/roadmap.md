@@ -53,7 +53,7 @@ O roadmap apresenta apenas o estado consolidado. Histórico, evidências, bloque
 | B-1 | **Concluída** | 2026-09-04 | 2026-09-05 | [Prontidão técnica](sprints/B-1.md) |
 | B0.1 | **Concluída** | 2026-09-15 | 2026-09-17 | [Decisões de produto e riscos](sprints/B0.1.md) |
 | B0.2 | **Concluída** | 2026-09-17 | 2026-09-17 | [Contrato primeiro e habilitação do frontend](sprints/B0.2.md) |
-| B1.1 | Não iniciada | — | — | a criar no planejamento da sprint |
+| B1.1 | **Em andamento** | 2026-09-17 | — | [Fundação modular e qualidade](sprints/B1.1.md) |
 | B1.2 | Não iniciada | — | — | a criar no planejamento da sprint |
 | B2.1 | Não iniciada | — | — | a criar no planejamento da sprint |
 | B2.2 | Não iniciada | — | — | a criar no planejamento da sprint |
