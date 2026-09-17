@@ -66,13 +66,13 @@ Iniciar a aplicação local com o profile explícito:
 .\gradlew.bat bootRun --args="--spring.profiles.active=local"
 ```
 
-Não é necessário iniciar o banco separadamente nesse fluxo: a integração do Spring Boot com Docker Compose inicia ou reutiliza o serviço `postgres` e aguarda o healthcheck. A aplicação fica disponível por padrão em `http://localhost:8080`.
+Não é necessário iniciar o banco separadamente nesse fluxo: a integração do Spring Boot com Docker Compose inicia ou reutiliza o serviço `postgres` e aguarda o healthcheck. A API fica disponível por padrão em `http://localhost:8081`; a aplicação Web usa `http://localhost:8080`, conforme o [ADR-011](adr/ADR-011-sessao-web-com-refresh-token-em-cookie.md).
 
 Em outro terminal, verificar os probes públicos:
 
 ```powershell
-Invoke-RestMethod http://localhost:8080/actuator/health/liveness
-Invoke-RestMethod http://localhost:8080/actuator/health/readiness
+Invoke-RestMethod http://localhost:8081/actuator/health/liveness
+Invoke-RestMethod http://localhost:8081/actuator/health/readiness
 ```
 
 Interromper a aplicação com `Ctrl+C`. Como o lifecycle local é `start-only`, o container e o volume continuam disponíveis para a próxima execução.

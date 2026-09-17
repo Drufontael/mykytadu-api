@@ -30,10 +30,10 @@ Inicie a aplicação com o profile local:
 .\gradlew.bat bootRun --args="--spring.profiles.active=local"
 ```
 
-O Spring Boot inicia ou reutiliza o PostgreSQL definido em `compose.yaml`. Quando a aplicação estiver pronta, consulte:
+O Spring Boot inicia ou reutiliza o PostgreSQL definido em `compose.yaml`. A API local fica em `http://localhost:8081`; quando estiver pronta, consulte:
 
-- `http://localhost:8080/actuator/health/liveness`;
-- `http://localhost:8080/actuator/health/readiness`.
+- `http://localhost:8081/actuator/health/liveness`;
+- `http://localhost:8081/actuator/health/readiness`.
 
 Para parar a aplicação, use `Ctrl+C`. O PostgreSQL e seus dados locais permanecem disponíveis até serem explicitamente parados ou removidos.
 
