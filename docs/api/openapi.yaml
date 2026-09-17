@@ -5,9 +5,9 @@ info:
   description: |
     Contrato HTTP inicial do MykytaDu API.
 
-    Esta versão descreve a superfície de Identity. A API usa JSON em
-    camelCase, IDs UUID como strings e datas ISO-8601 em UTC. O prefixo
-    `/api/v1` faz parte da URL base do servidor.
+    Esta versão descreve as superfícies iniciais de Identity e Translation.
+    A API usa JSON em camelCase, IDs UUID como strings e datas ISO-8601 em
+    UTC. O prefixo `/api/v1` faz parte da URL base do servidor.
   license:
     name: Proprietary
 servers:
@@ -16,6 +16,8 @@ servers:
 tags:
   - name: Identity
     description: Cadastro, autenticação, sessões e perfil
+  - name: Translation
+    description: Tradução de conteúdos textuais controlados
 paths:
   /auth/register:
     post:
@@ -413,6 +415,74 @@ paths:
         '500':
           $ref: '#/components/responses/InternalProblem'
 
+  /translations:
+    post:
+      tags: [Translation]
+      operationId: translateContent
+      summary: Traduzir um conteúdo
+      description: |
+        Recebe o texto que o cliente já possui, aplica os limites e a
+        normalização definidos pelo domínio Translation e retorna a tradução.
+        O cliente nunca chama o fornecedor diretamente. O campo `source` é
+        apenas metadado opcional de proveniência e não autoriza a API a buscar
+        conteúdo externo.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TranslationRequest'
+            examples:
+              default:
+                $ref: '#/components/examples/TranslationRequest'
+      responses:
+        '200':
+          description: Tradução concluída, com ou sem uso do cache
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranslationResponse'
+              examples:
+                cached:
+                  $ref: '#/components/examples/CachedTranslationResponse'
+                translated:
+                  $ref: '#/components/examples/TranslatedResponse'
+        '400':
+          description: Texto, idioma, tipo de conteúdo ou proveniência inválidos
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                translationValidation:
+                  $ref: '#/components/examples/TranslationValidationProblem'
+        '401':
+          $ref: '#/components/responses/AuthenticationProblem'
+        '429':
+          description: Limite de requisições ou quota de tradução excedido
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                format: int32
+                minimum: 1
+              description: Segundos mínimos antes de uma nova tentativa.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                quotaExceeded:
+                  $ref: '#/components/examples/TranslationQuotaProblem'
+        '502':
+          $ref: '#/components/responses/TranslationProviderProblem'
+        '504':
+          $ref: '#/components/responses/TranslationTimeoutProblem'
+        '500':
+          $ref: '#/components/responses/InternalProblem'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -765,6 +835,81 @@ components:
           description: Mensagem humana de validação; não usar como chave de decisão.
           example: must contain at least 12 characters
 
+    TranslationRequest:
+      type: object
+      additionalProperties: false
+      required: [text, sourceLanguage, targetLanguage, contentType]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 10000
+          description: Texto recebido do cliente; não é persistido como texto original nem registrado em telemetria integral.
+          example: Original anime description
+        sourceLanguage:
+          type: string
+          enum: [en, ja, auto]
+          description: Idioma de origem explícito ou detecção automática limitada ao suporte do MVP.
+          example: en
+        targetLanguage:
+          type: string
+          enum: [pt-BR]
+          description: Idioma-alvo disponível no MVP.
+          example: pt-BR
+        contentType:
+          type: string
+          enum: [ANIME_DESCRIPTION]
+          description: Tipo de conteúdo explicitamente autorizado pelo MVP.
+          example: ANIME_DESCRIPTION
+        source:
+          $ref: '#/components/schemas/TranslationSource'
+
+    TranslationSource:
+      type: object
+      additionalProperties: false
+      required: [system, externalId]
+      description: Metadado opcional e não confiável de proveniência.
+      properties:
+        system:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: Sistema de origem informado pelo cliente; não é usado para buscar conteúdo.
+          example: ANILIST
+        externalId:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: Identificador no sistema de origem; não substitui o texto na chave de cache.
+          example: '15125'
+
+    TranslationResponse:
+      type: object
+      additionalProperties: false
+      required: [translation, sourceLanguage, targetLanguage, contentType, cached]
+      properties:
+        translation:
+          type: string
+          description: Texto traduzido; pode preservar quebras de linha conforme a política do conteúdo.
+          example: Descrição traduzida
+        sourceLanguage:
+          type: string
+          enum: [en, ja]
+          description: Idioma efetivamente usado; quando a entrada foi `auto`, representa o idioma detectado.
+          example: en
+        targetLanguage:
+          type: string
+          enum: [pt-BR]
+          example: pt-BR
+        contentType:
+          type: string
+          enum: [ANIME_DESCRIPTION]
+          example: ANIME_DESCRIPTION
+        cached:
+          type: boolean
+          description: Indica se a resposta veio de uma tradução válida em cache.
+          example: true
+
   responses:
     ValidationProblem:
       description: Corpo ausente, inválido ou com campos que não atendem às restrições
@@ -827,6 +972,24 @@ components:
           examples:
             default:
               $ref: '#/components/examples/InternalProblem'
+    TranslationProviderProblem:
+      description: O provedor externo falhou ou devolveu uma resposta inválida
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            default:
+              $ref: '#/components/examples/TranslationProviderProblem'
+    TranslationTimeoutProblem:
+      description: O provedor externo não respondeu dentro do timeout
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            default:
+              $ref: '#/components/examples/TranslationTimeoutProblem'
 
   examples:
     RegisterRequest:
@@ -1014,4 +1177,70 @@ components:
         instance: /api/v1/auth/login
         code: internal_error
         traceId: 6d72c7b5-95f8-49b6-8e7a-0f7c6de4b2fa
+        errors: []
+    TranslationRequest:
+      value:
+        text: Original anime description
+        sourceLanguage: en
+        targetLanguage: pt-BR
+        contentType: ANIME_DESCRIPTION
+        source:
+          system: ANILIST
+          externalId: '15125'
+    CachedTranslationResponse:
+      value:
+        translation: Descrição traduzida
+        sourceLanguage: en
+        targetLanguage: pt-BR
+        contentType: ANIME_DESCRIPTION
+        cached: true
+    TranslatedResponse:
+      value:
+        translation: Descrição traduzida
+        sourceLanguage: en
+        targetLanguage: pt-BR
+        contentType: ANIME_DESCRIPTION
+        cached: false
+    TranslationValidationProblem:
+      value:
+        type: urn:mykytadu:problem:request_validation_failed
+        title: Request validation failed
+        status: 400
+        detail: The translation request contains invalid content or parameters.
+        instance: /api/v1/translations
+        code: request_validation_failed
+        traceId: 2e1f75f4-493c-4a43-a6c1-4f12f46a7d8e
+        errors:
+          - field: text
+            code: too_long
+            message: must contain at most 10000 characters
+    TranslationQuotaProblem:
+      value:
+        type: urn:mykytadu:problem:translation_quota_exceeded
+        title: Translation quota exceeded
+        status: 429
+        detail: The translation limit for this principal was exceeded.
+        instance: /api/v1/translations
+        code: translation_quota_exceeded
+        traceId: 0f984c5e-6c4f-49e6-94e2-f3f97a3b4e31
+        errors: []
+    TranslationProviderProblem:
+      value:
+        type: urn:mykytadu:problem:translation_provider_failed
+        title: Translation provider failed
+        status: 502
+        detail: The translation provider could not complete the request.
+        instance: /api/v1/translations
+        code: translation_provider_failed
+        traceId: 7cc4e2d3-6dc6-4f9f-9e10-7d8bb3d1a6c4
+        errors: []
+    TranslationTimeoutProblem:
+      value:
+        type: urn:mykytadu:problem:translation_provider_timeout
+        title: Translation provider timeout
+        status: 504
+        detail: The translation provider did not respond in time.
+        instance: /api/v1/translations
+        code: translation_provider_timeout
+        traceId: 9aa5a7f7-9a4c-42ec-bbf1-7d2f4c616d5e
         errors: []
