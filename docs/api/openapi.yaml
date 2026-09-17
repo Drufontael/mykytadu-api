@@ -95,59 +95,6 @@ paths:
         '500':
           $ref: '#/components/responses/InternalProblem'
 
-  /auth/login:
-    post:
-      tags: [Identity]
-      operationId: login
-      summary: Iniciar sessão
-      description: |
-        Autentica somente contas `active`. No Web, o refresh token é enviado
-        exclusivamente no cookie protegido `mykytadu_refresh`; em Android,
-        iOS e Desktop/JVM, o refresh token opaco é retornado no JSON para ser
-        guardado no cofre seguro da plataforma.
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LoginRequest'
-            examples:
-              default:
-                $ref: '#/components/examples/LoginRequest'
-      responses:
-        '200':
-          description: Sessão criada
-          headers:
-            Set-Cookie:
-              $ref: '#/components/headers/RefreshCookie'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SessionResponse'
-              examples:
-                web:
-                  $ref: '#/components/examples/WebSessionResponse'
-                native:
-                  $ref: '#/components/examples/NativeSessionResponse'
-        '400':
-          $ref: '#/components/responses/ValidationProblem'
-        '401':
-          description: Credencial inválida ou conta ainda não autorizada a iniciar sessão
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-              examples:
-                invalidCredentials:
-                  $ref: '#/components/examples/InvalidCredentialsProblem'
-                emailVerificationRequired:
-                  $ref: '#/components/examples/EmailVerificationRequiredProblem'
-        '429':
-          $ref: '#/components/responses/RateLimitProblem'
-        '500':
-          $ref: '#/components/responses/InternalProblem'
-
   /auth/csrf:
     get:
       tags: [Identity]
