@@ -1,8 +1,8 @@
 # MykytaDu API — Documento Mestre Backend
 
 > **Status:** baseline arquitetural aprovado; especificação em evolução  
-> **Versão:** 0.2  
-> **Data de referência:** 4 de setembro de 2026
+> **Versão:** 0.3
+> **Data de referência:** 17 de setembro de 2026
 
 ## 1. Propósito
 
@@ -237,7 +237,7 @@ Migrations Flyway versionadas seguem `VyyyyMMddHHmmss-descricao.sql`, com `local
 
 | Schema/tabela | Campos essenciais | Observação |
 | --- | --- | --- |
-| `identity.users` | `id UUIDv7`, `email`, `display_name`, `status`, `email_verified_at`, timestamps | e-mail normalizado e único; status: pending/active/blocked/deleted |
+| `identity.users` | `id UUIDv7`, `email`, `normalized_email`, `display_name`, `status`, `email_verified_at`, timestamps | e-mail normalizado e único; status: pending/active/blocked/deleted |
 | `identity.password_credentials` | `user_id`, `password_hash`, `algorithm`, `updated_at` | separa credencial do perfil |
 | `identity.roles` | `user_id`, `role` | chave composta; somente USER/ADMIN inicialmente |
 | `identity.sessions` | `id`, `user_id`, `refresh_token_hash`, `token_family_id`, `expires_at`, `revoked_at`, metadados mínimos | suporta rotação, logout e detecção de reuse |
@@ -348,7 +348,8 @@ Não é recomendado compartilhar classes Kotlin/JVM diretamente com o KMP. O con
 - profiles apenas para composição técnica, nunca para alterar regras de negócio;
 - Flyway executado de forma controlada no deploy;
 - endpoint de liveness separado de readiness;
-- logs estruturados em JSON fora do ambiente local;
+- logs estruturados em JSON; a coleta e retenção remotas seguem a configuração
+  do ambiente;
 - correlação via `traceId`.
 
 ### 10.3 CI mínimo
