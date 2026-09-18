@@ -20,6 +20,7 @@ rollback destrutivo automaticamente.
 
 Staging e produção não usam os valores do `compose.yaml`. URL, usuário,
 senha, certificados e demais segredos entram somente no ambiente de execução.
+O checklist da composição de staging está em [Checklist de staging](staging.md).
 
 ## 2. Fluxo de avanço
 

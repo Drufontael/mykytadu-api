@@ -43,6 +43,7 @@ Para parar a aplicação, use `Ctrl+C`. O PostgreSQL e seus dados locais permane
 - [ambiente local, ciclo de uso, reset e troubleshooting](docs/ambiente-local.md);
 - [construção e execução da imagem OCI](docs/operacao/imagem-oci.md);
 - [estratégia de migrações por ambiente](docs/operacao/migracoes.md);
+- [checklist e configuração de staging](docs/operacao/staging.md);
 - [integração contínua](docs/ci.md);
 - [observabilidade](docs/observabilidade.md);
 - [estratégia de testes](docs/testes.md);
