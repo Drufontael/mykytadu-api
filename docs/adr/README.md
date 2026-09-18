@@ -1,8 +1,8 @@
 # Architecture Decision Records — ADRs
 
 > **Status:** convenção ativa
-> **Versão:** 0.1
-> **Data de referência:** 4 de setembro de 2026
+> **Versão:** 0.2
+> **Data de referência:** 18 de setembro de 2026
 
 ## 1. Finalidade
 
@@ -30,7 +30,9 @@ ADRs complementares:
 - [ADR-013 — Cliente envia descrição para tradução](ADR-013-cliente-envia-descricao-para-traducao.md), decisão da B0.1-T4;
 - [ADR-014 — Política de retenção e exclusão de dados](ADR-014-politica-de-retencao-e-exclusao.md), decisão da B0.1-T5;
 - [ADR-015 — Render como hospedagem-alvo da API](ADR-015-render-como-hospedagem-alvo-da-api.md), decisão da B0.1-T6;
-- [ADR-016 — Construir imagem OCI com Cloud Native Buildpacks](ADR-016-construir-imagem-oci-com-buildpacks.md), decisão da B1.1-T4.
+- [ADR-016 — Construir imagem OCI com Cloud Native Buildpacks](ADR-016-construir-imagem-oci-com-buildpacks.md), decisão da B1.1-T4;
+- [ADR-017 — Enviar e-mail após commit com reemissão segura](ADR-017-enviar-email-apos-commit-com-reemissao-segura.md), decisão P-009 da B2.1;
+- [ADR-018 — Criar a sessão inicial no login da B2.1](ADR-018-criar-sessao-inicial-no-login-da-b21.md), reconciliação entre B2.1, B2.2 e o contrato de sessão.
 
 ## 2. Quando criar um ADR
 

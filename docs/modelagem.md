@@ -1,8 +1,8 @@
 # MykytaDu API — Modelagem evolutiva e arquitetura
 
 > **Status:** modelo conceitual inicial; evolui com ADRs e implementação
-> **Versão:** 0.2
-> **Data de referência:** 17 de setembro de 2026
+> **Versão:** 0.3
+> **Data de referência:** 18 de setembro de 2026
 > **Documento de origem:** [Documento Mestre Backend](documento-mestre-backend.md)
 
 ## 1. Finalidade e regras de evolução
@@ -171,7 +171,9 @@ classDiagram
         +UUID id
         +UUID userId
         +UUID tokenFamilyId
+        +String clientId
         +TokenHash refreshTokenHash
+        +TokenHash csrfTokenHash
         +Instant expiresAt
         +Instant revokedAt
         +rotate()
@@ -222,7 +224,8 @@ classDiagram
 - e-mail é normalizado antes da comparação e é único entre contas não excluídas; a exclusão segue o [ADR-014](adr/ADR-014-politica-de-retencao-e-exclusao.md);
 - toda conta nasce com papel `USER` e nunca sem ao menos um papel válido;
 - apenas credenciais com algoritmo/parâmetros reconhecidos podem autenticar; parâmetros antigos provocam rehash após login válido;
-- token de ação é de uso único, tem finalidade específica e expira;
+- token de ação é de uso único, tem finalidade específica e expira; o token de
+  verificação de e-mail vale por 24 horas conforme o ADR-017;
 - refresh token só existe em texto puro no instante de emissão/recepção; persiste-se seu hash;
 - uma rotação consome o token anterior atomicamente;
 - reutilização de token consumido revoga toda a família;
@@ -319,6 +322,8 @@ erDiagram
         uuid user_id FK
         text refresh_token_hash UK
         uuid token_family_id
+        text client_id
+        text csrf_token_hash
         timestamptz expires_at
         timestamptz revoked_at
         text revoke_reason
@@ -401,15 +406,25 @@ sequenceDiagram
     A->>A: hash Argon2id da senha
     A->>D: criar User(PENDING), Credential, Role e ActionToken(hash)
     D-->>A: commit
-    A->>E: solicitar e-mail com token puro
-    A-->>C: resposta sem credenciais internas
+    A->>E: após commit, solicitar e-mail com token puro em memória
+    alt provedor aceitou
+        E-->>A: aceito
+        A-->>C: 201 sem credenciais internas
+    else falha ou timeout
+        E-->>A: falha segura
+        A-->>C: 503 email_delivery_unavailable
+        C->>A: POST /api/v1/auth/verify-email/resend
+        A-->>C: 202 uniforme
+    end
     C->>A: POST /api/v1/auth/verify-email
     A->>D: consumir token e ativar usuário atomicamente
     D-->>A: confirmado
     A-->>C: sucesso
 ```
 
-**Pendente:** estratégia para falha do serviço de e-mail após commit. Sem broker no MVP, opções incluem envio síncrono com reemissão idempotente ou outbox processada localmente; a escolha exige ADR.
+O [ADR-017](adr/ADR-017-enviar-email-apos-commit-com-reemissao-segura.md)
+define envio síncrono após commit e reemissão pública uniforme. O token puro
+permanece apenas em memória; broker e outbox ficam fora do MVP.
 
 ### 9.2 Login e refresh rotativo
 
@@ -421,7 +436,7 @@ sequenceDiagram
     participant D as PostgreSQL
     participant B as Navegador/cofre seguro
 
-    C->>I: POST /auth/login (e-mail, senha)
+    C->>I: POST /auth/login (e-mail, senha, clientId opcional)
     I->>D: localizar usuário e credencial
     I->>I: verificar Argon2id e estado
     I->>D: criar sessão com hash do refresh
@@ -646,7 +661,7 @@ Uma extração futura deve preservar a API pública e introduzir contrato intern
 | P-006 | exclusão/anonimização de conta | modelo, constraints e operação | **Resolvida em B0.1** — [ADR-014](adr/ADR-014-politica-de-retencao-e-exclusao.md); implementação antes de B2.3 |
 | P-007 | audiences/client IDs por plataforma, incluindo Web | claims e validação JWT | **Resolvida em B0.1** — [ADR-011](adr/ADR-011-sessao-web-com-refresh-token-em-cookie.md) |
 | P-008 | hospedagem | deploy, secrets, backup e observabilidade | **Resolvida em B0.1** — [ADR-015](adr/ADR-015-render-como-hospedagem-alvo-da-api.md); ativação remota condicionada a orçamento |
-| P-009 | entrega confiável de e-mail sem broker | transação, reenvio e possível outbox local | antes de B2.1 |
+| P-009 | entrega confiável de e-mail sem broker | transação, reenvio e possível outbox local | **Resolvida em B2.1** — [ADR-017](adr/ADR-017-enviar-email-apos-commit-com-reemissao-segura.md) |
 | P-010 | tecnologia de rate limit multi-instância | consistência operacional | antes de escalar além de uma instância |
 
 ## 17. Rastreabilidade

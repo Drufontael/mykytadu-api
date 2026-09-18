@@ -1,8 +1,8 @@
 # Catálogo inicial de erros HTTP
 
 > **Status:** Aprovado
-> **Versão:** 0.2
-> **Data de referência:** 2026-09-17
+> **Versão:** 0.3
+> **Data de referência:** 2026-09-18
 > **Fonte contratual:** [OpenAPI 3.1](openapi.yaml)
 
 ## 1. Regra para o cliente
@@ -35,6 +35,7 @@ Para erros sem campo específico, `errors` é uma lista vazia.
 | `request_validation_failed` | 400 | qualquer request inválido | corrigir os campos indicados | campos rejeitados |
 | `registration_rejected` | 409 | cadastro | informar que o cadastro não pôde ser concluído; não inferir a causa | vazio |
 | `invalid_action_token` | 400 | verificação de e-mail e reset de senha | solicitar novo fluxo de ação | vazio |
+| `email_delivery_unavailable` | 503 | primeira entrega da verificação após cadastro | preservar o estado `pending`, respeitar `Retry-After` e oferecer reemissão | vazio |
 | `authentication_required` | 401 | recurso protegido sem credencial válida | iniciar login ou renovar sessão | vazio |
 | `invalid_credentials` | 401 | login | informar falha genérica de autenticação | vazio |
 | `email_verification_required` | 401 | login de conta pendente | orientar verificação de e-mail sem depender de `detail` | vazio |
@@ -50,6 +51,11 @@ Para erros sem campo específico, `errors` é uma lista vazia.
 `registration_rejected` não revela se o e-mail já existe. Da mesma forma,
 clientes não devem transformar diferenças de `detail` em decisões de UX ou
 segurança.
+
+`email_delivery_unavailable` significa que a conta já foi persistida, mas a
+primeira tentativa de entrega não foi aceita. O cliente não repete o cadastro:
+apresenta a ação de reemissão. `POST /auth/verify-email/resend` retorna `202`
+uniforme e nunca revela existência, estado da conta ou falha do provedor.
 
 ## 3. Exemplos
 

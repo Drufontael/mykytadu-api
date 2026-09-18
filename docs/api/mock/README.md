@@ -57,7 +57,15 @@ Login com resposta de sucesso:
 ```powershell
 curl.exe -i -X POST http://127.0.0.1:8082/auth/login `
   -H "Content-Type: application/json" `
-  --data-binary '{"email":"pessoa@example.com","password":"senha-fornecida-pelo-usuario"}'
+  --data-binary '{"email":"pessoa@example.com","password":"senha-fornecida-pelo-usuario","clientId":"mykytadu-android"}'
+```
+
+Reemissão uniforme da verificação de e-mail:
+
+```powershell
+curl.exe -i -X POST http://127.0.0.1:8082/auth/verify-email/resend `
+  -H "Content-Type: application/json" `
+  --data-binary '{"email":"pessoa@example.com"}'
 ```
 
 Consulta autenticada de perfil:
@@ -99,7 +107,8 @@ curl.exe -i -X POST http://127.0.0.1:8082/translations `
 ```
 
 Para verificar o fluxo de autenticação inválida, use `Prefer: code=401` no
-login. Para escolher um exemplo nomeado, o Prism aceita também
+login. Para simular falha da primeira entrega após cadastro, use
+`Prefer: code=503` em `/auth/register`. Para escolher um exemplo nomeado, o Prism aceita também
 `Prefer: example=<nome-do-exemplo>`, conforme a documentação do CLI.
 
 O runner usa `--errors`, permitindo que entradas inválidas produzam erro de

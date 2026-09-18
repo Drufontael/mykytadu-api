@@ -143,5 +143,6 @@ de versão ou exceção formal registrada.
 
 | Versão | Data | Estado | Mudança |
 |---|---|---|---|
-| `0.2.0` | 2026-09-17 | Atual | Adicionado `authorization_denied` para respostas `403` de autorização; Problem Details passou a ser centralizado por código tipado no backend |
+| `0.3.0` | 2026-09-18 | Atual | Adicionado `POST /auth/verify-email/resend`, erro `email_delivery_unavailable` e `clientId` opcional no login; ausência preserva o fluxo nativo legado, sem alterar requests existentes |
+| `0.2.0` | 2026-09-17 | Anterior | Adicionado `authorization_denied` para respostas `403` de autorização; Problem Details passou a ser centralizado por código tipado no backend |
 | `0.1.0` | 2026-09-17 | Anterior | Contrato inicial de Identity e Translation em `/api/v1`; sem depreciações e sem versão anterior suportada |
