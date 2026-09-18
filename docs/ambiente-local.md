@@ -1,8 +1,8 @@
 # MykytaDu API — Ambiente local
 
 > **Status:** vigente
-> **Versão:** 0.4
-> **Data de referência:** 4 de setembro de 2026
+> **Versão:** 0.5
+> **Data de referência:** 17 de setembro de 2026
 
 ## 1. Pré-requisitos
 
@@ -254,3 +254,6 @@ ser uma nova versão, com procedimento de recuperação e backup compatível com
 ambiente. O teste `MigrationConventionTests` executado pelo `check` verifica o
 padrão de nome, a ordenação, a unicidade das versões e o owner declarado das
 migrations funcionais.
+
+O procedimento de avanço, backup e recuperação por ambiente está em
+[Estratégia de migrações por ambiente](operacao/migracoes.md).

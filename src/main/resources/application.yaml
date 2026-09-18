@@ -12,6 +12,11 @@ spring:
     hibernate:
       ddl-auto: validate
 
+logging:
+  structured:
+    format:
+      console: logstash
+
 management:
   endpoint:
     health:
