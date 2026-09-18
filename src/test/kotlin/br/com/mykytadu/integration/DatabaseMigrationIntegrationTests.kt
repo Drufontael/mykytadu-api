@@ -26,14 +26,15 @@ class DatabaseMigrationIntegrationTests(
     @Test
     fun `starts an ephemeral PostgreSQL and applies every migration`() {
         assertThat(postgres.isRunning).isTrue()
-        assertThat(postgres.dockerImageName).isEqualTo("postgres:18.6-trixie")
-        assertThat(currentDatabase()).isEqualTo("test")
-        assertThat(domainSchemas()).containsExactlyInAnyOrder("identity", "translation")
-        assertThat(successfulMigrationVersions()).containsExactlyInAnyOrder(
+        assertThat(postgres.dockerImageName).isEqualTo(PostgreSqlIntegrationFixture.IMAGE)
+        assertThat(PostgreSqlIntegrationFixture.currentDatabase(jdbcTemplate)).isEqualTo("test")
+        assertThat(PostgreSqlIntegrationFixture.schemas(jdbcTemplate, setOf("identity", "translation")))
+            .containsExactlyInAnyOrder("identity", "translation")
+        assertThat(PostgreSqlIntegrationFixture.successfulMigrationVersions(jdbcTemplate)).containsExactlyInAnyOrder(
             "20260904184904",
             "20260917193036",
         )
-        assertThat(businessTablesInPublicSchema()).isZero()
+        assertThat(PostgreSqlIntegrationFixture.businessTablesInPublicSchema(jdbcTemplate)).isZero()
 
         mockMvc.get("/actuator/health/liveness").andExpect { status { isOk() } }
         mockMvc.get("/actuator/health/readiness").andExpect { status { isOk() } }
@@ -42,38 +43,11 @@ class DatabaseMigrationIntegrationTests(
         mockMvc.get("/actuator/health/readiness").andExpect { status { isServiceUnavailable() } }
     }
 
-    private fun domainSchemas(): Set<String> = jdbcTemplate.queryForList(
-        """
-            SELECT schema_name
-            FROM information_schema.schemata
-            WHERE schema_name IN ('identity', 'translation')
-        """.trimIndent(),
-        String::class.java,
-    ).filterNotNull().toSet()
-
-    private fun currentDatabase(): String? =
-        jdbcTemplate.queryForObject("SELECT current_database()", String::class.java)
-
-    private fun successfulMigrationVersions(): Set<String> = jdbcTemplate.queryForList(
-        "SELECT version FROM flyway_schema_history WHERE success",
-        String::class.java,
-    ).filterNotNull().toSet()
-
-    private fun businessTablesInPublicSchema(): Int = jdbcTemplate.queryForObject(
-        """
-            SELECT count(*)
-            FROM information_schema.tables
-            WHERE table_schema = 'public'
-              AND table_name <> 'flyway_schema_history'
-        """.trimIndent(),
-        Int::class.java,
-    ) ?: 0
-
     companion object {
 
         @Container
         @ServiceConnection
         @JvmStatic
-        val postgres = PostgreSQLContainer("postgres:18.6-trixie")
+        val postgres = PostgreSqlIntegrationFixture.newContainer()
     }
 }

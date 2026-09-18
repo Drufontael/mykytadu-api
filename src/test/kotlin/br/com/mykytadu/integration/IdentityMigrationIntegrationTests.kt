@@ -2,6 +2,7 @@ package br.com.mykytadu.integration
 
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -18,34 +19,45 @@ import org.testcontainers.postgresql.PostgreSQLContainer
 @ActiveProfiles("integration-test")
 class IdentityMigrationIntegrationTests(@Autowired private val jdbcTemplate: JdbcTemplate) {
 
+    @BeforeEach
+    fun clearIdentityData() {
+        jdbcTemplate.update(
+            "TRUNCATE TABLE identity.roles, identity.password_credentials, identity.users",
+        )
+    }
+
     @Test
     fun `creates the identity foundation with protected ownership boundaries`() {
-        assertThat(identityTables()).containsExactlyInAnyOrder(
+        assertThat(PostgreSqlIntegrationFixture.tables(jdbcTemplate, "identity")).containsExactlyInAnyOrder(
             "password_credentials",
             "roles",
             "users",
         )
-        assertThat(tableColumns("users")).containsExactlyInAnyOrder(
-            "created_at",
-            "display_name",
-            "email",
-            "email_verified_at",
-            "id",
-            "normalized_email",
-            "status",
-            "updated_at",
-        )
-        assertThat(tableColumns("password_credentials")).containsExactlyInAnyOrder(
-            "algorithm",
-            "password_hash",
-            "updated_at",
-            "user_id",
-        )
-        assertThat(tableColumns("roles")).containsExactlyInAnyOrder("role", "user_id")
-        assertThat(foreignKeyTables()).containsExactlyInAnyOrder(
-            "password_credentials",
-            "roles",
-        )
+        assertThat(PostgreSqlIntegrationFixture.columns(jdbcTemplate, "identity", "users"))
+            .containsExactlyInAnyOrder(
+                "created_at",
+                "display_name",
+                "email",
+                "email_verified_at",
+                "id",
+                "normalized_email",
+                "status",
+                "updated_at",
+            )
+        assertThat(PostgreSqlIntegrationFixture.columns(jdbcTemplate, "identity", "password_credentials"))
+            .containsExactlyInAnyOrder(
+                "algorithm",
+                "password_hash",
+                "updated_at",
+                "user_id",
+            )
+        assertThat(PostgreSqlIntegrationFixture.columns(jdbcTemplate, "identity", "roles"))
+            .containsExactlyInAnyOrder("role", "user_id")
+        assertThat(PostgreSqlIntegrationFixture.foreignKeyTables(jdbcTemplate, "identity"))
+            .containsExactlyInAnyOrder(
+                "password_credentials",
+                "roles",
+            )
     }
 
     @Test
@@ -109,41 +121,11 @@ class IdentityMigrationIntegrationTests(@Autowired private val jdbcTemplate: Jdb
         )
     }
 
-    private fun identityTables(): Set<String> = jdbcTemplate.queryForList(
-        """
-            SELECT table_name
-            FROM information_schema.tables
-            WHERE table_schema = 'identity'
-              AND table_type = 'BASE TABLE'
-        """.trimIndent(),
-        String::class.java,
-    ).filterNotNull().toSet()
-
-    private fun tableColumns(table: String): Set<String> = jdbcTemplate.queryForList(
-        """
-            SELECT column_name
-            FROM information_schema.columns
-            WHERE table_schema = 'identity'
-              AND table_name = '$table'
-        """.trimIndent(),
-        String::class.java,
-    ).filterNotNull().toSet()
-
-    private fun foreignKeyTables(): Set<String> = jdbcTemplate.queryForList(
-        """
-            SELECT table_name
-            FROM information_schema.table_constraints
-            WHERE constraint_schema = 'identity'
-              AND constraint_type = 'FOREIGN KEY'
-        """.trimIndent(),
-        String::class.java,
-    ).filterNotNull().toSet()
-
     companion object {
 
         @Container
         @ServiceConnection
         @JvmStatic
-        val postgres = PostgreSQLContainer("postgres:18.6-trixie")
+        val postgres = PostgreSqlIntegrationFixture.newContainer()
     }
 }
