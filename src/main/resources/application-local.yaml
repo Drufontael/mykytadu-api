@@ -10,3 +10,6 @@ spring:
     compose:
       enabled: true
       lifecycle-management: start-only
+
+server:
+  port: 8081

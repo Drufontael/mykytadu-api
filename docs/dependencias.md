@@ -1,8 +1,8 @@
 # MykytaDu API — Política e inventário de dependências
 
 > **Status:** vigente
-> **Versão:** 0.2
-> **Data de referência:** 4 de setembro de 2026
+> **Versão:** 0.3
+> **Data de referência:** 17 de setembro de 2026
 
 ## 1. Objetivo
 
@@ -62,10 +62,10 @@ AssertJ e MockK são a convenção aprovada na B-1-T08. As regras de uso e os li
 | Dependência | Motivo |
 | --- | --- |
 | `datasource-micrometer-spring-boot` e seu BOM | adicionavam instrumentação externa antes de existir uma necessidade além das métricas de pool `jdbc.connections` e Hikari já fornecidas pelo Actuator; podem ser reavaliados mediante lacuna observável |
-| `spring-modulith-observability-api` | só é necessária em compile scope para customizar as métricas de publicações de eventos, caso inexistente no momento |
+| `spring-modulith-observability-api` | não é necessária para os eventos de módulo atuais, que usam `ModuleObservation` e Micrometer; reavaliar somente se houver customização de métricas de publicações Modulith |
 | `spring-modulith-starter-jpa` | inclui o starter core e adiciona registro persistente de eventos JPA antes de haver eventos publicados |
 | `spring-modulith-actuator` | exposição da estrutura modular ainda não foi aprovada; avaliar na B-1-T12 |
-| `spring-modulith-observability-core` | tracing entre módulos será avaliado na B-1-T12, quando existirem módulos e interação observável |
+| `spring-modulith-observability-core` | não adotada na B1.2; tracing entre módulos permanece uma opção futura caso surja uma interação distribuída que justifique a dependência |
 | `spring-modulith-runtime` explícito | não há inicializadores nem verificação modular em startup; o suporte necessário agora fica no starter core e nos testes, e o runtime será reavaliado quando existir consumidor |
 
 ## 6. Dependências planejadas, ainda não adicionadas
@@ -73,7 +73,7 @@ AssertJ e MockK são a convenção aprovada na B-1-T08. As regras de uso e os li
 | Capacidade | Candidatas | Tarefa de decisão/adoção |
 | --- | --- | --- |
 | provedor HTTP simulado | WireMock ou MockWebServer | B3.1 |
-| observabilidade modular | `spring-modulith-starter-insight` ou artefatos individuais | B-1-T12, conforme necessidade demonstrada |
+| observabilidade avançada de eventos Modulith | `spring-modulith-starter-insight` ou artefatos individuais | futura, somente se a observabilidade atual com Micrometer não atender uma necessidade demonstrada |
 | persistência de eventos | starter Modulith JDBC/JPA, se houver publicação persistente | sprint do primeiro caso de evento confiável |
 
 ## 7. Plugins de qualidade

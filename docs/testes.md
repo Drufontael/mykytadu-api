@@ -1,8 +1,8 @@
 # MykytaDu API — Estratégia de testes
 
 > **Status:** vigente
-> **Versão:** 0.1
-> **Data de referência:** 4 de setembro de 2026
+> **Versão:** 0.2
+> **Data de referência:** 17 de setembro de 2026
 
 ## 1. Convenções principais
 
@@ -35,6 +35,18 @@ Regras:
 | Arquitetural | pacote `architecture` | classes compiladas e metadados dos módulos |
 | Smoke de contexto | `@SpringBootTest` com profile `test` | nenhuma infraestrutura manual |
 | Integração | pacote `integration`, sufixo `IntegrationTests` e profile `integration-test` | containers efêmeros gerenciados pelo teste |
+
+### 3.1 Persistência e isolamento
+
+`PostgreSqlIntegrationFixture` concentra somente detalhes técnicos reutilizáveis:
+imagem do PostgreSQL, criação de container novo por classe e consultas de
+metadados do schema. Cada classe de integração declara seu próprio container;
+não há singleton nem compartilhamento de estado entre classes.
+
+Testes que escrevem dados limpam as tabelas envolvidas antes de cada método.
+Inserções de domínio, invariantes e cenários específicos permanecem no teste
+da migration correspondente, fora do fixture técnico. Assim, os testes usam
+PostgreSQL real, são determinísticos e podem ser executados isoladamente.
 
 Executar toda a suíte:
 

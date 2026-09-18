@@ -1,0 +1,14 @@
+spring:
+  config:
+    activate:
+      on-profile: staging
+  docker:
+    compose:
+      enabled: false
+  datasource:
+    url: ${MYKYTADU_DATABASE_URL}
+    username: ${MYKYTADU_DATABASE_USERNAME}
+    password: ${MYKYTADU_DATABASE_PASSWORD}
+
+server:
+  port: ${MYKYTADU_SERVER_PORT:8081}

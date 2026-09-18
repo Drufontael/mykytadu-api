@@ -99,20 +99,20 @@ Shell Unix ou runner Linux:
 ./gradlew bootRun --args='--spring.profiles.active=local'
 ```
 
-Os probes públicos ficam em `http://localhost:8080`:
+Os probes públicos da API ficam em `http://localhost:8081`:
 
 PowerShell:
 
 ```powershell
-Invoke-RestMethod http://localhost:8080/actuator/health/liveness
-Invoke-RestMethod http://localhost:8080/actuator/health/readiness
+Invoke-RestMethod http://localhost:8081/actuator/health/liveness
+Invoke-RestMethod http://localhost:8081/actuator/health/readiness
 ```
 
 Shell Unix:
 
 ```bash
-curl --fail --silent --show-error http://localhost:8080/actuator/health/liveness
-curl --fail --silent --show-error http://localhost:8080/actuator/health/readiness
+curl --fail --silent --show-error http://localhost:8081/actuator/health/liveness
+curl --fail --silent --show-error http://localhost:8081/actuator/health/readiness
 ```
 
 Para alterar a porta do PostgreSQL sem editar o Compose:

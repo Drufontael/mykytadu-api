@@ -1,8 +1,8 @@
 # MykytaDu API — Modelagem evolutiva e arquitetura
 
 > **Status:** modelo conceitual inicial; evolui com ADRs e implementação
-> **Versão:** 0.1
-> **Data de referência:** 4 de setembro de 2026
+> **Versão:** 0.2
+> **Data de referência:** 17 de setembro de 2026
 > **Documento de origem:** [Documento Mestre Backend](documento-mestre-backend.md)
 
 ## 1. Finalidade e regras de evolução
@@ -296,7 +296,8 @@ O formato serializado usado antes do hash deve ser canônico e versionado para e
 erDiagram
     USERS {
         uuid id PK
-        citext_or_text email UK
+        text email
+        text normalized_email UK
         text display_name
         text status
         timestamptz email_verified_at
