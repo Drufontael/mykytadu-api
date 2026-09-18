@@ -10,6 +10,7 @@ repositório; as skills apenas operacionalizam fluxos específicos.
 | --- | --- | --- |
 | Auditar estado, coerência, progresso, riscos ou prontidão | [`mykytadu-api-audit`](skills/mykytadu-api-audit/SKILL.md) | Somente leitura |
 | Commitar e publicar uma unidade aceita | [`mykytadu-api-commit-publish`](skills/mykytadu-api-commit-publish/SKILL.md) | Pode alterar Git e fazer push, mediante autorização explícita |
+| Construir decisões semânticas tipadas com TypeSafe | [`typesafe-ai`](skills/typesafe-ai/SKILL.md) | Orienta integrações com julgamentos `Choice`, `Score` e `Noul` |
 
 Implementação comum não autoriza commit ou push e não deve usar a skill de
 publicação automaticamente.
