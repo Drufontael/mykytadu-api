@@ -2,8 +2,10 @@ package br.com.mykytadu.api.error
 
 import jakarta.servlet.http.HttpServletRequest
 import org.slf4j.LoggerFactory
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ProblemDetail
+import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -11,6 +13,20 @@ import org.springframework.web.bind.annotation.RestControllerAdvice
 
 @RestControllerAdvice
 class ApiExceptionHandler(private val problemFactory: ApiProblemFactory) {
+
+    @ExceptionHandler(ApiProblemException::class)
+    fun handleApiProblem(exception: ApiProblemException, request: HttpServletRequest): ResponseEntity<ProblemDetail> {
+        val problem = problemFactory.create(
+            status = exception.status,
+            code = exception.code,
+            request = request,
+        )
+        return ResponseEntity.status(exception.status)
+            .headers { headers ->
+                exception.retryAfterSeconds?.let { headers.set(HttpHeaders.RETRY_AFTER, it.toString()) }
+            }
+            .body(problem)
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException::class)
     fun handleValidation(exception: MethodArgumentNotValidException, request: HttpServletRequest): ProblemDetail {

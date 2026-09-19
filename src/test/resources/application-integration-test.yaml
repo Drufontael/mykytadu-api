@@ -8,3 +8,8 @@ spring:
   datasource:
     hikari:
       connection-timeout: 1000
+
+mykytadu:
+  identity:
+    email:
+      delivery-mode: accept

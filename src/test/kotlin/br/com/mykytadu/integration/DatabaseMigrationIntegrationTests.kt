@@ -33,6 +33,7 @@ class DatabaseMigrationIntegrationTests(
         assertThat(PostgreSqlIntegrationFixture.successfulMigrationVersions(jdbcTemplate)).containsExactlyInAnyOrder(
             "20260904184904",
             "20260917193036",
+            "20260919124700",
         )
         assertThat(PostgreSqlIntegrationFixture.businessTablesInPublicSchema(jdbcTemplate)).isZero()
 
