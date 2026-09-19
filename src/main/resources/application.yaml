@@ -12,6 +12,19 @@ spring:
     hibernate:
       ddl-auto: validate
 
+mykytadu:
+  identity:
+    registration:
+      verification-token-ttl: 24h
+      delivery-retry-after: 60s
+      registration-limit: 10
+      registration-window: 10m
+      resend-limit: 5
+      resend-window: 1h
+      resend-cooldown: 1m
+    email:
+      delivery-mode: unavailable
+
 logging:
   structured:
     format:

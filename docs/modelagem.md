@@ -1,8 +1,8 @@
 # MykytaDu API — Modelagem evolutiva e arquitetura
 
 > **Status:** modelo conceitual inicial; evolui com ADRs e implementação
-> **Versão:** 0.3
-> **Data de referência:** 18 de setembro de 2026
+> **Versão:** 0.4
+> **Data de referência:** 19 de setembro de 2026
 > **Documento de origem:** [Documento Mestre Backend](documento-mestre-backend.md)
 
 ## 1. Finalidade e regras de evolução
@@ -373,6 +373,10 @@ erDiagram
 | `identity` | `users`, `password_credentials`, `roles`, `sessions`, `action_tokens` | módulo Identity | unicidade de e-mail normalizado; FKs internas; tokens em hash |
 | `translation` | `translations`, `usage_daily` | módulo Translation | unicidade da chave lógica; contadores não negativos; nenhuma FK para Identity |
 | `public` | nenhuma tabela de negócio | plataforma | apenas extensões explicitamente controladas |
+
+As tabelas `identity.users`, `identity.password_credentials`, `identity.roles`
+e `identity.action_tokens` estão implementadas por migrations Flyway. Sessões e
+tabelas de Translation permanecem propostas até suas respectivas tarefas.
 
 ### 8.2 Índices orientados a consultas
 

@@ -8,6 +8,7 @@ import org.junit.jupiter.params.provider.ValueSource
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest
 import org.springframework.context.annotation.Import
+import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.mock.web.MockHttpServletResponse
@@ -15,7 +16,10 @@ import org.springframework.security.access.AccessDeniedException
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
+import org.springframework.test.web.servlet.post
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
 @WebMvcTest(SecurityFixtureController::class)
@@ -73,6 +77,17 @@ class SecurityConfigurationTest(
                 jsonPath("$.code") { value("authentication_required") }
             }
     }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["/api/v1/auth/register", "/api/v1/auth/verify-email/resend"])
+    fun `explicitly permits registration surfaces`(path: String) {
+        mockMvc.post(path) {
+            contentType = MediaType.APPLICATION_JSON
+            content = "{}"
+        }.andExpect {
+            status { isNoContent() }
+        }
+    }
 }
 
 @RestController
@@ -80,4 +95,8 @@ private class SecurityFixtureController {
 
     @GetMapping("/test/security/protected")
     fun protectedRoute() = mapOf("status" to "unexpected-public-response")
+
+    @PostMapping("/api/v1/auth/register", "/api/v1/auth/verify-email/resend")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun publicRegistrationSurface() = Unit
 }

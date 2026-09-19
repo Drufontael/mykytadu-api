@@ -17,3 +17,8 @@ management:
       group:
         readiness:
           include: readinessState
+
+mykytadu:
+  identity:
+    email:
+      delivery-mode: accept

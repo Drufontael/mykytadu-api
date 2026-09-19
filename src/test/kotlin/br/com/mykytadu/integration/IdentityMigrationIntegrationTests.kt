@@ -22,7 +22,7 @@ class IdentityMigrationIntegrationTests(@Autowired private val jdbcTemplate: Jdb
     @BeforeEach
     fun clearIdentityData() {
         jdbcTemplate.update(
-            "TRUNCATE TABLE identity.roles, identity.password_credentials, identity.users",
+            "TRUNCATE TABLE identity.action_tokens, identity.roles, identity.password_credentials, identity.users",
         )
     }
 
@@ -32,6 +32,7 @@ class IdentityMigrationIntegrationTests(@Autowired private val jdbcTemplate: Jdb
             "password_credentials",
             "roles",
             "users",
+            "action_tokens",
         )
         assertThat(PostgreSqlIntegrationFixture.columns(jdbcTemplate, "identity", "users"))
             .containsExactlyInAnyOrder(
@@ -53,8 +54,19 @@ class IdentityMigrationIntegrationTests(@Autowired private val jdbcTemplate: Jdb
             )
         assertThat(PostgreSqlIntegrationFixture.columns(jdbcTemplate, "identity", "roles"))
             .containsExactlyInAnyOrder("role", "user_id")
+        assertThat(PostgreSqlIntegrationFixture.columns(jdbcTemplate, "identity", "action_tokens"))
+            .containsExactlyInAnyOrder(
+                "consumed_at",
+                "created_at",
+                "expires_at",
+                "id",
+                "token_hash",
+                "type",
+                "user_id",
+            )
         assertThat(PostgreSqlIntegrationFixture.foreignKeyTables(jdbcTemplate, "identity"))
             .containsExactlyInAnyOrder(
+                "action_tokens",
                 "password_credentials",
                 "roles",
             )
@@ -101,6 +113,46 @@ class IdentityMigrationIntegrationTests(@Autowired private val jdbcTemplate: Jdb
                 """
                     INSERT INTO identity.roles(user_id, role)
                     VALUES ('01991f18-7d42-7b21-a2ef-1d8e6e14a901', 'OWNER')
+                """.trimIndent(),
+            )
+        }.isInstanceOf(DataIntegrityViolationException::class.java)
+    }
+
+    @Test
+    fun `protects action token purpose hash and temporal invariants`() {
+        insertUser(
+            id = "0199204a-1200-7001-8000-000000000001",
+            email = "action-token@example.test",
+            normalizedEmail = "action-token@example.test",
+            status = "pending",
+        )
+
+        assertActionTokenRejected(type = "unknown", tokenHash = "a".repeat(64), expiresAt = "2026-09-20T12:00:00Z")
+        assertActionTokenRejected(
+            type = "email_verification",
+            tokenHash = "raw-token",
+            expiresAt = "2026-09-20T12:00:00Z",
+        )
+        assertActionTokenRejected(
+            type = "email_verification",
+            tokenHash = "b".repeat(64),
+            expiresAt = "2026-09-19T12:00:00Z",
+        )
+    }
+
+    private fun assertActionTokenRejected(type: String, tokenHash: String, expiresAt: String) {
+        assertThatThrownBy {
+            jdbcTemplate.update(
+                """
+                    INSERT INTO identity.action_tokens(
+                        id, user_id, type, token_hash, expires_at, consumed_at, created_at
+                    )
+                    VALUES (
+                        '0199204a-1200-7001-8000-000000000010',
+                        '0199204a-1200-7001-8000-000000000001',
+                        '$type', '$tokenHash', TIMESTAMPTZ '$expiresAt', NULL,
+                        TIMESTAMPTZ '2026-09-19T12:00:00Z'
+                    )
                 """.trimIndent(),
             )
         }.isInstanceOf(DataIntegrityViolationException::class.java)

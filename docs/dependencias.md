@@ -1,8 +1,8 @@
 # MykytaDu API — Política e inventário de dependências
 
 > **Status:** vigente
-> **Versão:** 0.3
-> **Data de referência:** 17 de setembro de 2026
+> **Versão:** 0.4
+> **Data de referência:** 19 de setembro de 2026
 
 ## 1. Objetivo
 
@@ -31,6 +31,7 @@ Este documento registra por que cada grupo de dependências existe, quais capaci
 | `spring-boot-starter-data-jpa` | implementação | persistência relacional e Hibernate | BOM do Spring Boot |
 | `spring-boot-starter-flyway` | implementação | integração do ciclo de migrations | BOM do Spring Boot |
 | `flyway-database-postgresql` | implementação | suporte Flyway específico ao PostgreSQL | BOM do Spring Boot |
+| `bcprov-jdk18on` | implementação | provider criptográfico exigido pelo `Argon2PasswordEncoder` para derivar hashes Argon2id no cadastro | versão explícita 1.86; não gerenciada pelo BOM do Spring Boot |
 | `postgresql` | runtime | driver JDBC do PostgreSQL | BOM do Spring Boot |
 | `spring-boot-starter-actuator` | implementação | health, métricas e infraestrutura de observabilidade | BOM do Spring Boot |
 | `spring-modulith-starter-core` | implementação | modelo, verificação e runtime fundamentais dos módulos | BOM do Spring Modulith 2.1.1 |
@@ -40,6 +41,11 @@ Este documento registra por que cada grupo de dependências existe, quais capaci
 | `spring-boot-docker-compose` | desenvolvimento | descoberta e lifecycle dos serviços locais do Compose | BOM do Spring Boot |
 
 O `springdoc` permanece porque o contrato OpenAPI é uma entrega imediata da B0.2. Sua exposição por ambiente será restringida nas tarefas de configuração e segurança.
+
+O Bouncy Castle 1.86 foi adicionado na B2.1-T2 porque o encoder Argon2id do
+Spring Security depende desse provider em runtime e o BOM do Spring Boot não
+define sua versão. A versão foi conferida no catálogo oficial do projeto em
+19/09/2026 e permanece fixada, sem range ou snapshot.
 
 ## 4. Dependências de teste mantidas
 

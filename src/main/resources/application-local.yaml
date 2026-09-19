@@ -13,3 +13,8 @@ spring:
 
 server:
   port: 8081
+
+mykytadu:
+  identity:
+    email:
+      delivery-mode: accept
