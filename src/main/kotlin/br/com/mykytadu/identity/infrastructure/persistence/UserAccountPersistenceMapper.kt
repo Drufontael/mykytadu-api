@@ -54,4 +54,16 @@ internal object UserAccountPersistenceMapper {
         }
         return UserAccount.restore(user, credential, roles)
     }
+
+    fun updateProfile(entity: UserAccountEntity, account: UserAccount) {
+        entity.profile = UserProfileEmbeddable(
+            email = account.user.email.address,
+            normalizedEmail = account.user.email.normalized,
+            displayName = account.user.displayName,
+            status = account.user.status.persistenceValue,
+            emailVerifiedAt = account.user.emailVerifiedAt,
+            createdAt = account.user.createdAt,
+            updatedAt = account.user.updatedAt,
+        )
+    }
 }

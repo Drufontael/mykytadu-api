@@ -26,7 +26,7 @@ internal class UserAccountEntity(
     @Column(name = "id", nullable = false)
     val id: UUID,
     @Embedded
-    val profile: UserProfileEmbeddable,
+    var profile: UserProfileEmbeddable,
     @Embedded
     val credential: PasswordCredentialEmbeddable,
     roles: Set<String>,

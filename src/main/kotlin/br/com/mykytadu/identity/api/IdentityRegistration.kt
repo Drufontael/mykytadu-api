@@ -10,6 +10,8 @@ interface IdentityRegistration {
     fun register(command: RegisterAccountCommand): RegistrationOutcome
 
     fun resendVerification(command: ResendVerificationCommand): ResendVerificationOutcome
+
+    fun verifyEmail(command: VerifyEmailCommand): EmailVerificationOutcome
 }
 
 @NamedInterface("api")
@@ -27,6 +29,12 @@ class RegisterAccountCommand(
 class ResendVerificationCommand(val email: String, val requestKey: String) {
 
     override fun toString(): String = "ResendVerificationCommand(email=[REDACTED])"
+}
+
+@NamedInterface("api")
+class VerifyEmailCommand(val actionToken: String) {
+
+    override fun toString(): String = "VerifyEmailCommand(actionToken=[REDACTED])"
 }
 
 @NamedInterface("api")
@@ -53,6 +61,16 @@ sealed interface ResendVerificationOutcome {
 
     @NamedInterface("api")
     data class RateLimited(val retryAfterSeconds: Long) : ResendVerificationOutcome
+}
+
+@NamedInterface("api")
+sealed interface EmailVerificationOutcome {
+
+    @NamedInterface("api")
+    data object Verified : EmailVerificationOutcome
+
+    @NamedInterface("api")
+    data object Invalid : EmailVerificationOutcome
 }
 
 @NamedInterface("api")

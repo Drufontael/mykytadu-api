@@ -20,6 +20,14 @@ class ActionToken private constructor(
         }
     }
 
+    fun isConsumableAt(instant: Instant): Boolean =
+        consumedAt == null && !instant.isBefore(createdAt) && expiresAt.isAfter(instant)
+
+    fun consume(consumedAt: Instant): ActionToken {
+        check(isConsumableAt(consumedAt)) { "Action token cannot be consumed" }
+        return ActionToken(id, userId, type, tokenHash, expiresAt, consumedAt, createdAt)
+    }
+
     companion object {
 
         fun emailVerification(
@@ -37,6 +45,16 @@ class ActionToken private constructor(
             consumedAt = null,
             createdAt = createdAt,
         )
+
+        fun restore(
+            id: ActionTokenId,
+            userId: UserId,
+            type: ActionTokenType,
+            tokenHash: TokenHash,
+            expiresAt: Instant,
+            consumedAt: Instant?,
+            createdAt: Instant,
+        ): ActionToken = ActionToken(id, userId, type, tokenHash, expiresAt, consumedAt, createdAt)
     }
 }
 
@@ -57,6 +75,13 @@ value class ActionTokenId private constructor(val value: UUID) {
 enum class ActionTokenType(val persistenceValue: String) {
     EMAIL_VERIFICATION("email_verification"),
     PASSWORD_RESET("password_reset"),
+
+    ;
+
+    companion object {
+        fun fromPersistenceValue(value: String): ActionTokenType = entries.firstOrNull { it.persistenceValue == value }
+            ?: throw IllegalArgumentException("Unsupported action token type")
+    }
 }
 
 class TokenHash private constructor(private val value: String) {

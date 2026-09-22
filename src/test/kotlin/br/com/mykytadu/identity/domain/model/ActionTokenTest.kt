@@ -25,6 +25,28 @@ class ActionTokenTest {
     }
 
     @Test
+    fun `consumes a valid token only before its expiry`() {
+        val createdAt = Instant.parse("2026-09-19T12:00:00Z")
+        val token = ActionToken.emailVerification(
+            TOKEN_ID,
+            USER_ID,
+            TOKEN_HASH,
+            createdAt,
+            createdAt.plusSeconds(60),
+        )
+        val consumedAt = createdAt.plusSeconds(30)
+
+        val consumed = token.consume(consumedAt)
+
+        assertThat(consumed.consumedAt).isEqualTo(consumedAt)
+        assertThat(consumed.isConsumableAt(consumedAt)).isFalse()
+        assertThat(token.isConsumableAt(createdAt.plusSeconds(60))).isFalse()
+        assertThatThrownBy { token.consume(createdAt.plusSeconds(60)) }
+            .isInstanceOf(IllegalStateException::class.java)
+            .hasMessage("Action token cannot be consumed")
+    }
+
+    @Test
     fun `rejects invalid action token identifiers hashes and expiration`() {
         val createdAt = Instant.parse("2026-09-19T12:00:00Z")
 

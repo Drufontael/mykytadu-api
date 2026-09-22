@@ -14,4 +14,8 @@ internal interface SpringDataUserAccountRepository : JpaRepository<UserAccountEn
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select account from UserAccountEntity account where account.profile.normalizedEmail = :normalizedEmail")
     fun findByNormalizedEmailForUpdate(@Param("normalizedEmail") normalizedEmail: String): UserAccountEntity?
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select account from UserAccountEntity account where account.id = :id")
+    fun findByIdForUpdate(@Param("id") id: UUID): UserAccountEntity?
 }

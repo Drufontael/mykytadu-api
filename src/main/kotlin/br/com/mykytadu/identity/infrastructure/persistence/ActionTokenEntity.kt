@@ -22,7 +22,7 @@ internal class ActionTokenEntity(
     @Column(name = "expires_at", nullable = false)
     val expiresAt: Instant,
     @Column(name = "consumed_at")
-    val consumedAt: Instant?,
+    var consumedAt: Instant?,
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant,
 )

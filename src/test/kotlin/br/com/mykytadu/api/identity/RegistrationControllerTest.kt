@@ -2,12 +2,14 @@ package br.com.mykytadu.api.identity
 
 import br.com.mykytadu.api.error.ApiExceptionHandler
 import br.com.mykytadu.api.error.ApiProblemFactory
+import br.com.mykytadu.identity.api.EmailVerificationOutcome
 import br.com.mykytadu.identity.api.IdentityRegistration
 import br.com.mykytadu.identity.api.RegisterAccountCommand
 import br.com.mykytadu.identity.api.RegisteredUser
 import br.com.mykytadu.identity.api.RegistrationOutcome
 import br.com.mykytadu.identity.api.ResendVerificationCommand
 import br.com.mykytadu.identity.api.ResendVerificationOutcome
+import br.com.mykytadu.identity.api.VerifyEmailCommand
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -42,7 +44,9 @@ class RegistrationControllerTest(
     fun resetStub() {
         registration.registrationOutcome = RegistrationOutcome.Created(USER)
         registration.resendOutcome = ResendVerificationOutcome.Accepted
+        registration.verificationOutcome = EmailVerificationOutcome.Verified
         registration.registeredCommands.clear()
+        registration.verificationCommands.clear()
     }
 
     @Test
@@ -103,6 +107,35 @@ class RegistrationControllerTest(
         }
     }
 
+    @Test
+    fun `verifies an email without returning the action token`() {
+        val response = mockMvc.post("/api/v1/auth/verify-email") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"actionToken":"opaque-verification-token"}"""
+        }.andExpect {
+            status { isNoContent() }
+        }.andReturn().response
+
+        assertThat(response.contentAsString).isEmpty()
+        assertThat(registration.verificationCommands.single().actionToken)
+            .isEqualTo("opaque-verification-token")
+    }
+
+    @Test
+    fun `maps an unusable action token to the stable problem`() {
+        registration.verificationOutcome = EmailVerificationOutcome.Invalid
+
+        mockMvc.post("/api/v1/auth/verify-email") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"actionToken":"unusable-token"}"""
+        }.andExpect {
+            status { isBadRequest() }
+            content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
+            jsonPath("$.code") { value("invalid_action_token") }
+            jsonPath("$.errors") { isEmpty() }
+        }
+    }
+
     private fun assertRegistrationProblem(status: Int, code: String, retryAfter: String?) {
         mockMvc.post("/api/v1/auth/register") {
             contentType = MediaType.APPLICATION_JSON
@@ -129,7 +162,9 @@ class RegistrationControllerTest(
     class StubIdentityRegistration : IdentityRegistration {
         var registrationOutcome: RegistrationOutcome = RegistrationOutcome.Created(USER)
         var resendOutcome: ResendVerificationOutcome = ResendVerificationOutcome.Accepted
+        var verificationOutcome: EmailVerificationOutcome = EmailVerificationOutcome.Verified
         val registeredCommands = mutableListOf<RegisterAccountCommand>()
+        val verificationCommands = mutableListOf<VerifyEmailCommand>()
 
         override fun register(command: RegisterAccountCommand): RegistrationOutcome {
             registeredCommands += command
@@ -137,6 +172,11 @@ class RegistrationControllerTest(
         }
 
         override fun resendVerification(command: ResendVerificationCommand): ResendVerificationOutcome = resendOutcome
+
+        override fun verifyEmail(command: VerifyEmailCommand): EmailVerificationOutcome {
+            verificationCommands += command
+            return verificationOutcome
+        }
     }
 
     companion object {

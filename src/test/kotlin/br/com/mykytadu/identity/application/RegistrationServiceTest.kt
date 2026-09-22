@@ -1,11 +1,14 @@
 package br.com.mykytadu.identity.application
 
+import br.com.mykytadu.identity.api.EmailVerificationOutcome
 import br.com.mykytadu.identity.api.RegisterAccountCommand
 import br.com.mykytadu.identity.api.RegistrationOutcome
 import br.com.mykytadu.identity.api.ResendVerificationCommand
 import br.com.mykytadu.identity.api.ResendVerificationOutcome
+import br.com.mykytadu.identity.api.VerifyEmailCommand
 import br.com.mykytadu.identity.application.port.out.ActionTokenCryptography
 import br.com.mykytadu.identity.application.port.out.DeliveryStatus
+import br.com.mykytadu.identity.application.port.out.EmailVerificationStore
 import br.com.mykytadu.identity.application.port.out.IdentityIdGenerator
 import br.com.mykytadu.identity.application.port.out.PasswordHasher
 import br.com.mykytadu.identity.application.port.out.RateLimitDecision
@@ -105,12 +108,35 @@ class RegistrationServiceTest {
         assertThat(outcome).isEqualTo(RegistrationOutcome.RateLimited(30))
     }
 
+    @Test
+    fun `hashes and verifies the received action token at the injected time`() {
+        val verificationStore = FakeEmailVerificationStore(true)
+
+        val outcome = service(emailVerificationStore = verificationStore)
+            .verifyEmail(VerifyEmailCommand(RAW_TOKEN))
+
+        assertThat(outcome).isEqualTo(EmailVerificationOutcome.Verified)
+        assertThat(verificationStore.receivedHash)
+            .isEqualTo(FixedTokenCryptography().hash(RAW_TOKEN))
+        assertThat(verificationStore.verifiedAt).isEqualTo(NOW)
+    }
+
+    @Test
+    fun `returns the same invalid outcome for an unusable action token`() {
+        val outcome = service(emailVerificationStore = FakeEmailVerificationStore(false))
+            .verifyEmail(VerifyEmailCommand("expired-or-consumed-token"))
+
+        assertThat(outcome).isEqualTo(EmailVerificationOutcome.Invalid)
+    }
+
     private fun service(
         store: FakeRegistrationStore = FakeRegistrationStore(mutableListOf()),
         sender: FakeEmailSender = FakeEmailSender(mutableListOf()),
         rateLimiter: RegistrationRateLimiter = FakeRateLimiter(),
+        emailVerificationStore: EmailVerificationStore = FakeEmailVerificationStore(false),
     ): RegistrationService = RegistrationService(
         store = store,
+        emailVerificationStore = emailVerificationStore,
         idGenerator = FixedIdGenerator(),
         passwordHasher = object : PasswordHasher {
             override fun hash(password: CharSequence): PasswordHash = PASSWORD_HASH
@@ -170,6 +196,17 @@ class RegistrationServiceTest {
             lastRecipient = recipient
             lastToken = actionToken
             return status
+        }
+    }
+
+    private class FakeEmailVerificationStore(private val result: Boolean) : EmailVerificationStore {
+        var receivedHash: TokenHash? = null
+        var verifiedAt: Instant? = null
+
+        override fun verify(tokenHash: TokenHash, verifiedAt: Instant): Boolean {
+            receivedHash = tokenHash
+            this.verifiedAt = verifiedAt
+            return result
         }
     }
 

@@ -2,12 +2,14 @@ package br.com.mykytadu.api.identity
 
 import br.com.mykytadu.api.error.ApiProblemException
 import br.com.mykytadu.api.error.ProblemCode
+import br.com.mykytadu.identity.api.EmailVerificationOutcome
 import br.com.mykytadu.identity.api.IdentityRegistration
 import br.com.mykytadu.identity.api.RegisterAccountCommand
 import br.com.mykytadu.identity.api.RegisteredUser
 import br.com.mykytadu.identity.api.RegistrationOutcome
 import br.com.mykytadu.identity.api.ResendVerificationCommand
 import br.com.mykytadu.identity.api.ResendVerificationOutcome
+import br.com.mykytadu.identity.api.VerifyEmailCommand
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Email
@@ -90,6 +92,13 @@ internal class RegistrationController(
         }
     }
 
+    @PostMapping("/verify-email")
+    fun verifyEmail(@Valid @RequestBody request: VerifyEmailRequest): ResponseEntity<Void> =
+        when (registration.verifyEmail(VerifyEmailCommand(request.actionToken))) {
+            EmailVerificationOutcome.Verified -> ResponseEntity.noContent().build()
+            EmailVerificationOutcome.Invalid -> fail(HttpStatus.BAD_REQUEST, ProblemCode.INVALID_ACTION_TOKEN)
+        }
+
     private fun RegisteredUser.toResponse(): UserProfileResponse = UserProfileResponse(
         id = id,
         email = email,
@@ -129,6 +138,15 @@ internal data class ResendVerificationRequest(
 ) {
 
     override fun toString(): String = "ResendVerificationRequest(email=[REDACTED])"
+}
+
+internal data class VerifyEmailRequest(
+    @field:NotBlank
+    @field:Size(max = 512)
+    val actionToken: String,
+) {
+
+    override fun toString(): String = "VerifyEmailRequest(actionToken=[REDACTED])"
 }
 
 internal data class RegistrationResponse(val user: UserProfileResponse, val nextAction: String)

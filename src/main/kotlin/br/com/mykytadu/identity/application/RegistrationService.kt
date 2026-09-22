@@ -1,13 +1,16 @@
 package br.com.mykytadu.identity.application
 
+import br.com.mykytadu.identity.api.EmailVerificationOutcome
 import br.com.mykytadu.identity.api.IdentityRegistration
 import br.com.mykytadu.identity.api.RegisterAccountCommand
 import br.com.mykytadu.identity.api.RegisteredUser
 import br.com.mykytadu.identity.api.RegistrationOutcome
 import br.com.mykytadu.identity.api.ResendVerificationCommand
 import br.com.mykytadu.identity.api.ResendVerificationOutcome
+import br.com.mykytadu.identity.api.VerifyEmailCommand
 import br.com.mykytadu.identity.application.port.out.ActionTokenCryptography
 import br.com.mykytadu.identity.application.port.out.DeliveryStatus
+import br.com.mykytadu.identity.application.port.out.EmailVerificationStore
 import br.com.mykytadu.identity.application.port.out.IdentityIdGenerator
 import br.com.mykytadu.identity.application.port.out.PasswordHasher
 import br.com.mykytadu.identity.application.port.out.RateLimitDecision
@@ -29,6 +32,7 @@ import java.time.Duration
 @Profile("!test")
 internal class RegistrationService(
     private val store: RegistrationStore,
+    private val emailVerificationStore: EmailVerificationStore,
     private val idGenerator: IdentityIdGenerator,
     private val passwordHasher: PasswordHasher,
     private val tokenCryptography: ActionTokenCryptography,
@@ -116,6 +120,15 @@ internal class RegistrationService(
         }
 
         return ResendVerificationOutcome.Accepted
+    }
+
+    override fun verifyEmail(command: VerifyEmailCommand): EmailVerificationOutcome {
+        val tokenHash = tokenCryptography.hash(command.actionToken)
+        return if (emailVerificationStore.verify(tokenHash, clock.instant())) {
+            EmailVerificationOutcome.Verified
+        } else {
+            EmailVerificationOutcome.Invalid
+        }
     }
 
     private fun UserAccount.toRegisteredUser(): RegisteredUser = RegisteredUser(

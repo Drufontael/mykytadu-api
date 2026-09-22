@@ -79,7 +79,13 @@ class SecurityConfigurationTest(
     }
 
     @ParameterizedTest
-    @ValueSource(strings = ["/api/v1/auth/register", "/api/v1/auth/verify-email/resend"])
+    @ValueSource(
+        strings = [
+            "/api/v1/auth/register",
+            "/api/v1/auth/verify-email",
+            "/api/v1/auth/verify-email/resend",
+        ],
+    )
     fun `explicitly permits registration surfaces`(path: String) {
         mockMvc.post(path) {
             contentType = MediaType.APPLICATION_JSON
@@ -96,7 +102,7 @@ private class SecurityFixtureController {
     @GetMapping("/test/security/protected")
     fun protectedRoute() = mapOf("status" to "unexpected-public-response")
 
-    @PostMapping("/api/v1/auth/register", "/api/v1/auth/verify-email/resend")
+    @PostMapping("/api/v1/auth/register", "/api/v1/auth/verify-email", "/api/v1/auth/verify-email/resend")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun publicRegistrationSurface() = Unit
 }

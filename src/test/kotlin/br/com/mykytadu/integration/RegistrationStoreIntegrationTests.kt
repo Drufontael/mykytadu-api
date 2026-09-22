@@ -1,5 +1,6 @@
 package br.com.mykytadu.integration
 
+import br.com.mykytadu.identity.application.port.out.EmailVerificationStore
 import br.com.mykytadu.identity.application.port.out.RegistrationConflictException
 import br.com.mykytadu.identity.application.port.out.RegistrationStore
 import br.com.mykytadu.identity.application.port.out.VerificationTokenDraft
@@ -24,12 +25,16 @@ import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.postgresql.PostgreSQLContainer
 import java.time.Instant
 import java.util.UUID
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 @Testcontainers
 @SpringBootTest
 @ActiveProfiles("integration-test")
 class RegistrationStoreIntegrationTests(
     @Autowired private val store: RegistrationStore,
+    @Autowired private val emailVerificationStore: EmailVerificationStore,
     @Autowired private val jdbcTemplate: JdbcTemplate,
 ) {
 
@@ -104,6 +109,73 @@ class RegistrationStoreIntegrationTests(
                 "b".repeat(64),
             ),
         ).isEqualTo(first.account.user.id.value)
+    }
+
+    @Test
+    fun `consumes a verification token and activates its pending account only once`() {
+        val fixture = fixture(1, "person@example.com", "a")
+        val verifiedAt = NOW.plusSeconds(60)
+        store.create(fixture.account, fixture.token)
+
+        val firstAttempt = emailVerificationStore.verify(fixture.token.tokenHash, verifiedAt)
+        val secondAttempt = emailVerificationStore.verify(fixture.token.tokenHash, verifiedAt.plusSeconds(1))
+
+        assertThat(firstAttempt).isTrue()
+        assertThat(secondAttempt).isFalse()
+        assertThat(jdbcTemplate.queryForObject("SELECT status FROM identity.users", String::class.java))
+            .isEqualTo("active")
+        assertThat(jdbcTemplate.queryForObject("SELECT email_verified_at FROM identity.users", Instant::class.java))
+            .isEqualTo(verifiedAt)
+        assertThat(jdbcTemplate.queryForObject("SELECT updated_at FROM identity.users", Instant::class.java))
+            .isEqualTo(verifiedAt)
+        assertThat(jdbcTemplate.queryForObject("SELECT consumed_at FROM identity.action_tokens", Instant::class.java))
+            .isEqualTo(verifiedAt)
+    }
+
+    @Test
+    fun `does not consume an expired verification token or activate its account`() {
+        val fixture = fixture(1, "person@example.com", "a")
+        store.create(fixture.account, fixture.token)
+
+        val verified = emailVerificationStore.verify(fixture.token.tokenHash, fixture.token.expiresAt)
+
+        assertThat(verified).isFalse()
+        assertThat(jdbcTemplate.queryForObject("SELECT status FROM identity.users", String::class.java))
+            .isEqualTo("pending")
+        assertThat(jdbcTemplate.queryForObject("SELECT consumed_at FROM identity.action_tokens", Instant::class.java))
+            .isNull()
+    }
+
+    @Test
+    fun `allows only one concurrent verification to consume the token`() {
+        val fixture = fixture(1, "person@example.com", "a")
+        val verifiedAt = NOW.plusSeconds(60)
+        store.create(fixture.account, fixture.token)
+        val executor = Executors.newFixedThreadPool(2)
+        val ready = CountDownLatch(2)
+        val start = CountDownLatch(1)
+
+        try {
+            val attempts = List(2) {
+                executor.submit<Boolean> {
+                    ready.countDown()
+                    check(start.await(5, TimeUnit.SECONDS)) { "Concurrent verification did not start" }
+                    emailVerificationStore.verify(fixture.token.tokenHash, verifiedAt)
+                }
+            }
+            assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue()
+            start.countDown()
+
+            assertThat(attempts.map { it.get(10, TimeUnit.SECONDS) }).containsExactlyInAnyOrder(true, false)
+            assertThat(jdbcTemplate.queryForObject("SELECT status FROM identity.users", String::class.java))
+                .isEqualTo("active")
+            assertThat(
+                jdbcTemplate.queryForObject("SELECT consumed_at FROM identity.action_tokens", Instant::class.java),
+            )
+                .isEqualTo(verifiedAt)
+        } finally {
+            executor.shutdownNow()
+        }
     }
 
     private fun fixture(sequence: Int, email: String, hashCharacter: String): RegistrationFixture {

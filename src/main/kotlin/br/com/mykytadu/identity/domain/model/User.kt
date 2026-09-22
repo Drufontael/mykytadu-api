@@ -25,6 +25,20 @@ class User private constructor(
         }
     }
 
+    fun verifyEmail(verifiedAt: Instant): User {
+        check(status == UserStatus.PENDING) { "Only a pending user can verify an email" }
+        require(!verifiedAt.isBefore(updatedAt)) { "Email verification time must not precede the last update" }
+        return User(
+            id = id,
+            email = email,
+            displayName = displayName,
+            status = UserStatus.ACTIVE,
+            emailVerifiedAt = verifiedAt,
+            createdAt = createdAt,
+            updatedAt = verifiedAt,
+        )
+    }
+
     companion object {
 
         fun pending(id: UserId, email: Email, displayName: String?, now: Instant): User = User(

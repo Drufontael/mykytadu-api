@@ -13,6 +13,12 @@ class UserAccount private constructor(val user: User, val credential: PasswordCr
         require(this.roles.any { it.role == Role.USER }) { "User must have the default USER role" }
     }
 
+    fun verifyEmail(verifiedAt: Instant): UserAccount = UserAccount(
+        user = user.verifyEmail(verifiedAt),
+        credential = credential,
+        roles = roles,
+    )
+
     companion object {
 
         fun pending(

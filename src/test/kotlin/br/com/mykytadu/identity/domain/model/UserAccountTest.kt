@@ -30,6 +30,47 @@ class UserAccountTest {
     }
 
     @Test
+    fun `verifies a pending account at the supplied instant`() {
+        val createdAt = Instant.parse("2026-09-18T12:00:00Z")
+        val verifiedAt = createdAt.plusSeconds(60)
+        val account = UserAccount.pending(
+            USER_ID,
+            Email.from("person@example.com"),
+            "Person",
+            PASSWORD_HASH,
+            createdAt,
+        )
+
+        val verified = account.verifyEmail(verifiedAt)
+
+        assertThat(verified.user.status).isEqualTo(UserStatus.ACTIVE)
+        assertThat(verified.user.emailVerifiedAt).isEqualTo(verifiedAt)
+        assertThat(verified.user.updatedAt).isEqualTo(verifiedAt)
+        assertThat(verified.credential).isSameAs(account.credential)
+        assertThat(verified.roles).isEqualTo(account.roles)
+    }
+
+    @Test
+    fun `does not verify a non-pending account or move time backwards`() {
+        val createdAt = Instant.parse("2026-09-18T12:00:00Z")
+        val account = UserAccount.pending(
+            USER_ID,
+            Email.from("person@example.com"),
+            null,
+            PASSWORD_HASH,
+            createdAt,
+        )
+        val active = account.verifyEmail(createdAt.plusSeconds(60))
+
+        assertThatThrownBy { active.verifyEmail(createdAt.plusSeconds(120)) }
+            .isInstanceOf(IllegalStateException::class.java)
+            .hasMessage("Only a pending user can verify an email")
+        assertThatThrownBy { account.verifyEmail(createdAt.minusSeconds(1)) }
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessage("Email verification time must not precede the last update")
+    }
+
+    @Test
     fun `rejects ids that are not UUIDv7`() {
         assertThatThrownBy { UserId.from(UUID.randomUUID()) }
             .isInstanceOf(IllegalArgumentException::class.java)

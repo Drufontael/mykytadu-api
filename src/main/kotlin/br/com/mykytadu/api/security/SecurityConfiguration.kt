@@ -38,6 +38,7 @@ class SecurityConfiguration {
                 it.requestMatchers(
                     HttpMethod.POST,
                     "/api/v1/auth/register",
+                    "/api/v1/auth/verify-email",
                     "/api/v1/auth/verify-email/resend",
                 ).permitAll()
                 it.anyRequest().authenticated()
