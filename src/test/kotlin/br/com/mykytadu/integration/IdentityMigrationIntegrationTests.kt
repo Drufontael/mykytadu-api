@@ -22,7 +22,8 @@ class IdentityMigrationIntegrationTests(@Autowired private val jdbcTemplate: Jdb
     @BeforeEach
     fun clearIdentityData() {
         jdbcTemplate.update(
-            "TRUNCATE TABLE identity.roles, identity.password_credentials, identity.users",
+            "TRUNCATE TABLE identity.sessions, identity.action_tokens, identity.roles, " +
+                "identity.password_credentials, identity.users",
         )
     }
 
@@ -32,6 +33,8 @@ class IdentityMigrationIntegrationTests(@Autowired private val jdbcTemplate: Jdb
             "password_credentials",
             "roles",
             "users",
+            "action_tokens",
+            "sessions",
         )
         assertThat(PostgreSqlIntegrationFixture.columns(jdbcTemplate, "identity", "users"))
             .containsExactlyInAnyOrder(
@@ -53,10 +56,35 @@ class IdentityMigrationIntegrationTests(@Autowired private val jdbcTemplate: Jdb
             )
         assertThat(PostgreSqlIntegrationFixture.columns(jdbcTemplate, "identity", "roles"))
             .containsExactlyInAnyOrder("role", "user_id")
+        assertThat(PostgreSqlIntegrationFixture.columns(jdbcTemplate, "identity", "action_tokens"))
+            .containsExactlyInAnyOrder(
+                "consumed_at",
+                "created_at",
+                "expires_at",
+                "id",
+                "token_hash",
+                "type",
+                "user_id",
+            )
+        assertThat(PostgreSqlIntegrationFixture.columns(jdbcTemplate, "identity", "sessions"))
+            .containsExactlyInAnyOrder(
+                "client_id",
+                "created_at",
+                "csrf_token_hash",
+                "expires_at",
+                "id",
+                "refresh_token_hash",
+                "revoke_reason",
+                "revoked_at",
+                "token_family_id",
+                "user_id",
+            )
         assertThat(PostgreSqlIntegrationFixture.foreignKeyTables(jdbcTemplate, "identity"))
             .containsExactlyInAnyOrder(
+                "action_tokens",
                 "password_credentials",
                 "roles",
+                "sessions",
             )
     }
 
@@ -101,6 +129,92 @@ class IdentityMigrationIntegrationTests(@Autowired private val jdbcTemplate: Jdb
                 """
                     INSERT INTO identity.roles(user_id, role)
                     VALUES ('01991f18-7d42-7b21-a2ef-1d8e6e14a901', 'OWNER')
+                """.trimIndent(),
+            )
+        }.isInstanceOf(DataIntegrityViolationException::class.java)
+    }
+
+    @Test
+    fun `protects action token purpose hash and temporal invariants`() {
+        insertUser(
+            id = "0199204a-1200-7001-8000-000000000001",
+            email = "action-token@example.test",
+            normalizedEmail = "action-token@example.test",
+            status = "pending",
+        )
+
+        assertActionTokenRejected(type = "unknown", tokenHash = "a".repeat(64), expiresAt = "2026-09-20T12:00:00Z")
+        assertActionTokenRejected(
+            type = "email_verification",
+            tokenHash = "raw-token",
+            expiresAt = "2026-09-20T12:00:00Z",
+        )
+        assertActionTokenRejected(
+            type = "email_verification",
+            tokenHash = "b".repeat(64),
+            expiresAt = "2026-09-19T12:00:00Z",
+        )
+    }
+
+    @Test
+    fun `protects session hash client csrf expiry and revocation invariants`() {
+        insertUser(
+            id = "019937b6-3600-7001-8000-000000000001",
+            email = "session@example.test",
+            normalizedEmail = "session@example.test",
+            status = "active",
+        )
+
+        assertSessionRejected(refreshHash = "raw-refresh-token")
+        assertSessionRejected(clientId = "unknown-client")
+        assertSessionRejected(clientId = "mykytadu-web")
+        assertSessionRejected(clientId = "mykytadu-android", csrfHash = "c".repeat(64))
+        assertSessionRejected(expiresAt = "2026-09-22T12:00:00Z")
+        assertSessionRejected(revokedAt = "2026-09-22T12:01:00Z")
+    }
+
+    private fun assertActionTokenRejected(type: String, tokenHash: String, expiresAt: String) {
+        assertThatThrownBy {
+            jdbcTemplate.update(
+                """
+                    INSERT INTO identity.action_tokens(
+                        id, user_id, type, token_hash, expires_at, consumed_at, created_at
+                    )
+                    VALUES (
+                        '0199204a-1200-7001-8000-000000000010',
+                        '0199204a-1200-7001-8000-000000000001',
+                        '$type', '$tokenHash', TIMESTAMPTZ '$expiresAt', NULL,
+                        TIMESTAMPTZ '2026-09-19T12:00:00Z'
+                    )
+                """.trimIndent(),
+            )
+        }.isInstanceOf(DataIntegrityViolationException::class.java)
+    }
+
+    private fun assertSessionRejected(
+        refreshHash: String = "a".repeat(64),
+        clientId: String? = null,
+        csrfHash: String? = null,
+        expiresAt: String = "2026-10-22T12:00:00Z",
+        revokedAt: String? = null,
+    ) {
+        val clientValue = clientId?.let { "'$it'" } ?: "NULL"
+        val csrfValue = csrfHash?.let { "'$it'" } ?: "NULL"
+        val revokedValue = revokedAt?.let { "TIMESTAMPTZ '$it'" } ?: "NULL"
+        assertThatThrownBy {
+            jdbcTemplate.update(
+                """
+                    INSERT INTO identity.sessions(
+                        id, user_id, refresh_token_hash, token_family_id, client_id,
+                        csrf_token_hash, expires_at, revoked_at, revoke_reason, created_at
+                    )
+                    VALUES (
+                        '019937b6-3600-7001-8000-000000000010',
+                        '019937b6-3600-7001-8000-000000000001',
+                        '$refreshHash', '019937b6-3600-7001-8000-000000000011', $clientValue,
+                        $csrfValue, TIMESTAMPTZ '$expiresAt', $revokedValue, NULL,
+                        TIMESTAMPTZ '2026-09-22T12:00:00Z'
+                    )
                 """.trimIndent(),
             )
         }.isInstanceOf(DataIntegrityViolationException::class.java)

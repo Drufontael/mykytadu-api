@@ -12,6 +12,33 @@ spring:
     hibernate:
       ddl-auto: validate
 
+mykytadu:
+  identity:
+    authentication:
+      login-limit: 10
+      login-window: 10m
+      access-token-ttl: 10m
+      refresh-token-ttl: 30d
+      allowed-web-origins:
+        - http://localhost:8080
+    jwt:
+      issuer: https://api.mykytadu.com
+      audience: mykytadu-api
+      active-key-id: ${MYKYTADU_JWT_ACTIVE_KEY_ID:}
+      key-mode: configured
+      private-key-pem: ${MYKYTADU_JWT_PRIVATE_KEY_PEM:}
+      public-key-pem: ${MYKYTADU_JWT_PUBLIC_KEY_PEM:}
+    registration:
+      verification-token-ttl: 24h
+      delivery-retry-after: 60s
+      registration-limit: 10
+      registration-window: 10m
+      resend-limit: 5
+      resend-window: 1h
+      resend-cooldown: 1m
+    email:
+      delivery-mode: unavailable
+
 logging:
   structured:
     format:

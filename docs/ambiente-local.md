@@ -1,8 +1,8 @@
 # MykytaDu API — Ambiente local
 
 > **Status:** vigente
-> **Versão:** 0.5
-> **Data de referência:** 17 de setembro de 2026
+> **Versão:** 0.6
+> **Data de referência:** 19 de setembro de 2026
 
 ## 1. Pré-requisitos
 
@@ -78,6 +78,12 @@ Invoke-RestMethod http://localhost:8081/actuator/health/readiness
 Interromper a aplicação com `Ctrl+C`. Como o lifecycle local é `start-only`, o container e o volume continuam disponíveis para a próxima execução.
 
 O profile `local` mantém o container em execução ao encerrar a aplicação (`start-only`). As variáveis opcionais `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER` e `POSTGRES_PASSWORD` permitem sobrescrever somente os valores locais. Não armazenar segredos de ambientes remotos nesses arquivos.
+
+No profile `local`, o adapter controlado de verificação aceita a solicitação
+sem enviar e-mail real e sem registrar endereço ou token. Sem configuração de
+ambiente, a entrega permanece indisponível por padrão e o cadastro responde
+com `email_delivery_unavailable`; um provedor remoto deve substituir esse
+adapter antes da exposição do fluxo fora de ambientes controlados.
 
 O profile `test` é ativado nos testes que não precisam de persistência. Testes de integração com banco usam `integration-test` e Testcontainers, sem reutilizar o banco local nem o estado de outra execução.
 

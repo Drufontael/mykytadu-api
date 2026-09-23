@@ -8,3 +8,11 @@ spring:
   datasource:
     hikari:
       connection-timeout: 1000
+
+mykytadu:
+  identity:
+    jwt:
+      active-key-id: integration-ephemeral
+      key-mode: ephemeral
+    email:
+      delivery-mode: accept

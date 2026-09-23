@@ -1,8 +1,12 @@
 package br.com.mykytadu.api.observability
 
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import io.micrometer.core.instrument.MeterRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
@@ -22,6 +26,7 @@ class ModuleObservationTest(
     @Autowired private val mockMvc: MockMvc,
     @Autowired private val meterRegistry: MeterRegistry,
 ) {
+
     @Test
     @WithMockUser
     fun `separates domain and infrastructure failures with bounded tags`() {
@@ -72,6 +77,30 @@ class ModuleObservationTest(
             .tag("outcome", "failure")
             .counter()!!.id.tags.map { it.key }
         assertThat(tags).containsExactlyInAnyOrder("module", "event", "category", "code", "outcome")
+    }
+
+    @Test
+    @WithMockUser
+    fun `keeps the request trace in the event context without metric cardinality`() {
+        val logger = LoggerFactory.getLogger(ModuleObservation::class.java) as Logger
+        val appender = ListAppender<ILoggingEvent>().apply { start() }
+        logger.addAppender(appender)
+
+        try {
+            val response = mockMvc.get("/test/observability/modules/identity/domain")
+                .andExpect { status { isOk() } }
+                .andReturn().response
+
+            val event = appender.list.single { it.formattedMessage == "module_observation" }
+            assertThat(event.mdcPropertyMap[TraceIdFilter.TRACE_ID])
+                .isEqualTo(response.getHeader(TraceIdFilter.TRACE_ID_HEADER))
+            assertThat(event.mdcPropertyMap.keys).containsExactly(TraceIdFilter.TRACE_ID)
+            assertThat(event.formattedMessage)
+                .doesNotContain("@", "Bearer", "token", "password", "authorization")
+        } finally {
+            logger.detachAppender(appender)
+            appender.stop()
+        }
     }
 
     private fun counter(

@@ -22,6 +22,11 @@ enum class ProblemCode(val wireValue: String, val defaultTitle: String, val defa
         "Action token invalid",
         "The action token is invalid or expired.",
     ),
+    EMAIL_DELIVERY_UNAVAILABLE(
+        "email_delivery_unavailable",
+        "Email delivery unavailable",
+        "The account was created, but the verification email could not be delivered now.",
+    ),
     AUTHENTICATION_REQUIRED(
         "authentication_required",
         "Authentication required",

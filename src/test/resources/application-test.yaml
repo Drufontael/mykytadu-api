@@ -17,3 +17,11 @@ management:
       group:
         readiness:
           include: readinessState
+
+mykytadu:
+  identity:
+    jwt:
+      active-key-id: test-ephemeral
+      key-mode: ephemeral
+    email:
+      delivery-mode: accept

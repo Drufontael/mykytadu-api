@@ -55,7 +55,7 @@ O roadmap apresenta apenas o estado consolidado. Histórico, evidências, bloque
 | B0.2 | **Concluída** | 2026-09-17 | 2026-09-17 | [Contrato primeiro e habilitação do frontend](sprints/B0.2.md) |
 | B1.1 | **Concluída** | 2026-09-17 | 2026-09-17 | [Fundação modular e qualidade](sprints/B1.1.md) |
 | B1.2 | **Concluída** | 2026-09-17 | 2026-09-17 | [Banco, migrações e observabilidade](sprints/B1.2.md) |
-| B2.1 | Não iniciada | — | — | a criar no planejamento da sprint |
+| B2.1 | **Concluída** | 2026-09-18 | 2026-09-23 | [Cadastro, verificação e login](sprints/B2.1.md) |
 | B2.2 | Não iniciada | — | — | a criar no planejamento da sprint |
 | B2.3 | Não iniciada | — | — | a criar no planejamento da sprint |
 | B3.1 | Não iniciada | — | — | a criar no planejamento da sprint |
@@ -241,10 +241,10 @@ flowchart LR
 | ID | Tarefa | Restrições | Critérios de aceitação |
 | --- | --- | --- | --- |
 | B2.1-T1 | Modelar usuário, credencial e papéis | e-mail normalizado e único; papéis limitados a `USER`/`ADMIN` | migração, constraints e testes cobrem duplicidade, estados e papel padrão |
-| B2.1-T2 | Implementar cadastro | senha com Argon2id versionado; resposta não expõe hash | cadastro válido cria usuário pendente, credencial e token de verificação atômicos |
-| B2.1-T3 | Implementar verificação de e-mail | token armazenado somente como hash, uso único e expirável | token válido ativa conta; expirado, consumido ou inválido retorna código estável |
-| B2.1-T4 | Implementar login | rate limit; mensagem não facilita enumeração de contas | credenciais válidas respeitam estado/verificação; inválidas têm resposta segura e auditável |
-| B2.1-T5 | Emitir JWT assimétrico | access token de 5–15 min, `kid`, issuer e audience validados | claims mínimos definidos; chave pode rotacionar sem invalidar imediatamente a anterior |
+| B2.1-T2 | Implementar cadastro | senha com Argon2id versionado; envio ocorre após commit conforme ADR-017 | cadastro válido cria usuário pendente, credencial e token de verificação atômicos; falha de entrega é recuperável por reemissão uniforme |
+| B2.1-T3 | Implementar verificação de e-mail | token armazenado somente como hash, uso único e TTL de 24 horas | token válido ativa conta; expirado, consumido ou inválido retorna código estável |
+| B2.1-T4 | Implementar login | rate limit; `clientId` opcional para compatibilidade; mensagem não facilita enumeração | credenciais válidas respeitam estado/verificação; inválidas têm resposta segura e auditável; plataforma seleciona fluxo Web ou nativo sem `User-Agent` |
+| B2.1-T5 | Emitir JWT e criar sessão inicial | access token de 10 min; refresh/CSRF somente como hash; `kid`, issuer e audience validados | sessão e família são persistidas; Web recebe cookie e CSRF, nativos recebem refresh no corpo; claims mínimos e rotação de chave são testados |
 | B2.1-T6 | Cobrir abuso e concorrência | sem dados sensíveis nos logs | testes cobrem cadastro concorrente, brute force básico, tokens expirados e usuário bloqueado |
 
 **Saída da sprint:** registro → verificação → login demonstrável por API.
@@ -255,7 +255,7 @@ flowchart LR
 
 | ID | Tarefa | Restrições | Critérios de aceitação |
 | --- | --- | --- | --- |
-| B2.2-T1 | Persistir sessões e famílias de tokens | refresh opaco e somente hash; metadados mínimos | sessão possui expiração, família e estado de revogação; token puro nunca é recuperável do banco |
+| B2.2-T1 | Evoluir a sessão inicial para rotação e revogação | partir da persistência criada em B2.1; refresh opaco e somente hash | sessão pode ser localizada e bloqueada atomicamente para refresh, expiração e revogação sem recuperar o token puro |
 | B2.2-T2 | Implementar rotação de refresh | consumo deve ser atômico | refresh válido emite novo par e invalida o anterior sob concorrência |
 | B2.2-T3 | Detectar reutilização | revogar a família comprometida | reuso de token rotacionado revoga a família e produz evento/auditoria sem registrar token |
 | B2.2-T4 | Implementar logout atual e global | operações idempotentes | logout atual revoga uma sessão; logout-all revoga todas as sessões do usuário |

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: MykytaDu API
-  version: 0.2.0
+  version: 0.3.1
   description: |
     Contrato HTTP inicial do MykytaDu API.
 
@@ -61,6 +61,8 @@ paths:
                   $ref: '#/components/examples/RegistrationRejectedProblem'
         '429':
           $ref: '#/components/responses/RateLimitProblem'
+        '503':
+          $ref: '#/components/responses/EmailDeliveryProblem'
         '500':
           $ref: '#/components/responses/InternalProblem'
 
@@ -95,6 +97,45 @@ paths:
         '500':
           $ref: '#/components/responses/InternalProblem'
 
+  /auth/verify-email/resend:
+    post:
+      tags: [Identity]
+      operationId: resendEmailVerification
+      summary: Reemitir verificação de e-mail
+      description: |
+        Aceita a solicitação de forma uniforme, exista ou não uma conta
+        `pending` elegível. Para uma conta elegível, invalida tokens anteriores,
+        cria um novo token e tenta o envio somente após o commit. O endpoint não
+        revela existência, estado da conta nem resultado do provedor de e-mail.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Origin'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailVerificationResendRequest'
+            examples:
+              default:
+                $ref: '#/components/examples/EmailVerificationResendRequest'
+      responses:
+        '202':
+          description: Solicitação aceita independentemente da elegibilidade da conta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionAcceptedResponse'
+              examples:
+                default:
+                  $ref: '#/components/examples/ActionAcceptedResponse'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '429':
+          $ref: '#/components/responses/RateLimitProblem'
+        '500':
+          $ref: '#/components/responses/InternalProblem'
+
   /auth/login:
     post:
       tags: [Identity]
@@ -104,7 +145,9 @@ paths:
         Autentica somente contas `active`. No Web, o refresh token é enviado
         exclusivamente no cookie protegido `mykytadu_refresh`; em Android,
         iOS e Desktop/JVM, o refresh token opaco é retornado no JSON para ser
-        guardado no cofre seguro da plataforma.
+        guardado no cofre seguro da plataforma. Novos clientes informam
+        `clientId`; sua ausência preserva compatibilidade pelo fluxo nativo
+        legado, sem inferência por `User-Agent`.
       security: []
       requestBody:
         required: true
@@ -143,6 +186,8 @@ paths:
                   $ref: '#/components/examples/InvalidCredentialsProblem'
                 emailVerificationRequired:
                   $ref: '#/components/examples/EmailVerificationRequiredProblem'
+        '403':
+          $ref: '#/components/responses/CsrfProblem'
         '429':
           $ref: '#/components/responses/RateLimitProblem'
         '500':
@@ -576,6 +621,18 @@ components:
           enum: [verifyEmail]
           description: Próxima ação esperada do cliente.
 
+    EmailVerificationResendRequest:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          description: Endereço usado somente para localizar uma conta elegível; a resposta é sempre uniforme.
+          example: pessoa@example.com
+
     LoginRequest:
       type: object
       additionalProperties: false
@@ -593,6 +650,15 @@ components:
           maxLength: 128
           writeOnly: true
           example: senha-fornecida-pelo-usuario
+        clientId:
+          type: string
+          enum: [mykytadu-web, mykytadu-android, mykytadu-ios, mykytadu-desktop]
+          description: |
+            Identifica o protocolo da plataforma sem conceder autorização.
+            Opcional durante a transição de compatibilidade de `/api/v1`;
+            quando ausente, a API usa o fluxo nativo legado e omite a claim de
+            client ID. `mykytadu-web` também exige uma Origin permitida.
+          example: mykytadu-android
 
     SessionResponse:
       type: object
@@ -786,6 +852,7 @@ components:
         - request_validation_failed
         - registration_rejected
         - invalid_action_token
+        - email_delivery_unavailable
         - authentication_required
         - invalid_credentials
         - email_verification_required
@@ -993,6 +1060,22 @@ components:
           examples:
             default:
               $ref: '#/components/examples/RateLimitProblem'
+    EmailDeliveryProblem:
+      description: Conta persistida, mas a primeira entrega de verificação não foi aceita pelo provedor
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+          description: Segundos recomendados antes de solicitar reemissão.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          examples:
+            default:
+              $ref: '#/components/examples/EmailDeliveryProblem'
     InternalProblem:
       description: Falha inesperada sem detalhes internos
       content:
@@ -1042,10 +1125,17 @@ components:
     ActionTokenRequest:
       value:
         actionToken: <action-token-from-email>
+    EmailVerificationResendRequest:
+      value:
+        email: pessoa@example.com
+    ActionAcceptedResponse:
+      value:
+        accepted: true
     LoginRequest:
       value:
         email: pessoa@example.com
         password: senha-fornecida-pelo-usuario
+        clientId: mykytadu-android
     WebSessionResponse:
       value:
         accessToken: <access-token>
@@ -1167,6 +1257,16 @@ components:
         instance: /api/v1/auth/verify-email
         code: invalid_action_token
         traceId: 88fb0ef8-9c8b-4b18-b77a-bd7e38cd1a04
+        errors: []
+    EmailDeliveryProblem:
+      value:
+        type: urn:mykytadu:problem:email_delivery_unavailable
+        title: Email delivery unavailable
+        status: 503
+        detail: The account was created, but the verification email could not be delivered now.
+        instance: /api/v1/auth/register
+        code: email_delivery_unavailable
+        traceId: 0f11495a-a1af-4d29-8450-e1af5d403616
         errors: []
     SessionInvalidProblem:
       value:

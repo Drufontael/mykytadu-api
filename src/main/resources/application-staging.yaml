@@ -12,3 +12,10 @@ spring:
 
 server:
   port: ${MYKYTADU_SERVER_PORT:8081}
+
+mykytadu:
+  identity:
+    authentication:
+      allowed-web-origins: ${MYKYTADU_WEB_ALLOWED_ORIGINS}
+    jwt:
+      issuer: ${MYKYTADU_JWT_ISSUER}

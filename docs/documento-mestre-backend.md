@@ -1,8 +1,8 @@
 # MykytaDu API — Documento Mestre Backend
 
 > **Status:** baseline arquitetural aprovado; especificação em evolução  
-> **Versão:** 0.3
-> **Data de referência:** 17 de setembro de 2026
+> **Versão:** 0.4
+> **Data de referência:** 18 de setembro de 2026
 
 ## 1. Propósito
 
@@ -240,7 +240,7 @@ Migrations Flyway versionadas seguem `VyyyyMMddHHmmss-descricao.sql`, com `local
 | `identity.users` | `id UUIDv7`, `email`, `normalized_email`, `display_name`, `status`, `email_verified_at`, timestamps | e-mail normalizado e único; status: pending/active/blocked/deleted |
 | `identity.password_credentials` | `user_id`, `password_hash`, `algorithm`, `updated_at` | separa credencial do perfil |
 | `identity.roles` | `user_id`, `role` | chave composta; somente USER/ADMIN inicialmente |
-| `identity.sessions` | `id`, `user_id`, `refresh_token_hash`, `token_family_id`, `expires_at`, `revoked_at`, metadados mínimos | suporta rotação, logout e detecção de reuse |
+| `identity.sessions` | `id`, `user_id`, `refresh_token_hash`, `token_family_id`, `client_id`, `csrf_token_hash`, `expires_at`, `revoked_at`, metadados mínimos | suporta login Web/nativo, rotação, logout e detecção de reuse; hashes sensíveis não são recuperáveis |
 | `identity.action_tokens` | `id`, `user_id`, `type`, `token_hash`, `expires_at`, `consumed_at` | verificação de e-mail e reset de senha |
 | `translation.translations` | `id`, `content_hash`, idiomas, tipo, texto traduzido, provider/model, `created_at`, `expires_at` | unique sobre chave lógica; texto original não é persistido; cache expira em 30 dias |
 | `translation.usage_daily` | `day`, `principal_id`, contadores de caracteres e requisições | opcional no primeiro deploy; útil para quota e custo |
@@ -271,6 +271,7 @@ Base path: `/api/v1`. JSON em `camelCase`. Datas em ISO-8601 UTC. IDs como strin
 | --- | --- | --- | --- |
 | `POST` | `/auth/register` | criar conta | pública + rate limit |
 | `POST` | `/auth/verify-email` | confirmar e-mail | token de ação |
+| `POST` | `/auth/verify-email/resend` | reenviar verificação sem revelar a conta | pública + rate limit |
 | `POST` | `/auth/login` | autenticar | pública + rate limit |
 | `POST` | `/auth/refresh` | rotacionar sessão | refresh token |
 | `POST` | `/auth/logout` | revogar sessão atual | autenticada |
@@ -417,7 +418,7 @@ Não é recomendado compartilhar classes Kotlin/JVM diretamente com o KMP. O con
 
 ## 13. Decisões pendentes
 
-Estas respostas alteram o contrato ou os dados e devem ser resolvidas antes da implementação correspondente. As decisões sobre cadastro, verificação, audiences/client IDs e retenção/exclusão foram resolvidas em [ADR-010](adr/ADR-010-cadastro-com-verificacao-de-email.md), [ADR-011](adr/ADR-011-sessao-web-com-refresh-token-em-cookie.md) e [ADR-014](adr/ADR-014-politica-de-retencao-e-exclusao.md).
+Estas respostas alteram o contrato ou os dados e devem ser resolvidas antes da implementação correspondente. As decisões sobre cadastro, verificação, entrega e reemissão de e-mail, audiences/client IDs, fronteira da sessão inicial e retenção/exclusão foram resolvidas em [ADR-010](adr/ADR-010-cadastro-com-verificacao-de-email.md), [ADR-011](adr/ADR-011-sessao-web-com-refresh-token-em-cookie.md), [ADR-014](adr/ADR-014-politica-de-retencao-e-exclusao.md), [ADR-017](adr/ADR-017-enviar-email-apos-commit-com-reemissao-segura.md) e [ADR-018](adr/ADR-018-criar-sessao-inicial-no-login-da-b21.md).
 
 1. **Tradução:** o provedor inicial foi definido como LibreTranslate self-hosted com Argos, com adapter substituível em [ADR-012](adr/ADR-012-libretranslate-com-adapter-substituivel.md); orçamento operacional e validação antes da produção permanecem pendentes.
 2. **Operação:** Render foi definido como hospedagem-alvo da API no [ADR-015](adr/ADR-015-render-como-hospedagem-alvo-da-api.md); ativação, domínio, região e orçamento permanecem pendentes.
