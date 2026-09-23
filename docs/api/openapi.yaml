@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: MykytaDu API
-  version: 0.3.0
+  version: 0.3.1
   description: |
     Contrato HTTP inicial do MykytaDu API.
 
@@ -108,6 +108,8 @@ paths:
         cria um novo token e tenta o envio somente após o commit. O endpoint não
         revela existência, estado da conta nem resultado do provedor de e-mail.
       security: []
+      parameters:
+        - $ref: '#/components/parameters/Origin'
       requestBody:
         required: true
         content:
@@ -184,6 +186,8 @@ paths:
                   $ref: '#/components/examples/InvalidCredentialsProblem'
                 emailVerificationRequired:
                   $ref: '#/components/examples/EmailVerificationRequiredProblem'
+        '403':
+          $ref: '#/components/responses/CsrfProblem'
         '429':
           $ref: '#/components/responses/RateLimitProblem'
         '500':

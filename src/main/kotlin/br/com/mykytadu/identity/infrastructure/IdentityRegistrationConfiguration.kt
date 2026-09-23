@@ -9,6 +9,7 @@ import br.com.mykytadu.identity.infrastructure.mail.EmailDeliveryMode
 import br.com.mykytadu.identity.infrastructure.observability.MicrometerRegistrationTelemetry
 import br.com.mykytadu.identity.infrastructure.ratelimit.InMemoryRegistrationRateLimiter
 import br.com.mykytadu.identity.infrastructure.security.Argon2PasswordHasher
+import br.com.mykytadu.identity.infrastructure.security.JwtConfigurationProperties
 import br.com.mykytadu.identity.infrastructure.security.SecureActionTokenCryptography
 import br.com.mykytadu.identity.infrastructure.security.SecureIdentityIdGenerator
 import io.micrometer.core.instrument.MeterRegistry
@@ -77,6 +78,7 @@ internal class IdentityRegistrationConfiguration {
 data class IdentityRegistrationConfigurationProperties(
     val registration: RegistrationPolicyProperties = RegistrationPolicyProperties(),
     val authentication: AuthenticationPolicyProperties = AuthenticationPolicyProperties(),
+    val jwt: JwtConfigurationProperties = JwtConfigurationProperties(),
     val email: EmailProperties = EmailProperties(),
 )
 
@@ -93,6 +95,9 @@ data class RegistrationPolicyProperties(
 data class AuthenticationPolicyProperties(
     val loginLimit: Int = 10,
     val loginWindow: Duration = Duration.ofMinutes(10),
+    val accessTokenTtl: Duration = Duration.ofMinutes(10),
+    val refreshTokenTtl: Duration = Duration.ofDays(30),
+    val allowedWebOrigins: Set<String> = setOf("http://localhost:8080"),
 )
 
 data class EmailProperties(val deliveryMode: EmailDeliveryMode = EmailDeliveryMode.UNAVAILABLE)

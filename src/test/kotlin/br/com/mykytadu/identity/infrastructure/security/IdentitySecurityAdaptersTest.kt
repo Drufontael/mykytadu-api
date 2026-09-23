@@ -17,11 +17,20 @@ class IdentitySecurityAdaptersTest {
 
         val userId = generator.nextUserId().value
         val actionTokenId = generator.nextActionTokenId().value
+        val sessionId = generator.nextSessionId().value
+        val familyId = generator.nextTokenFamilyId().value
+        val accessTokenId = generator.nextAccessTokenId()
 
         assertThat(userId.version()).isEqualTo(7)
         assertThat(actionTokenId.version()).isEqualTo(7)
+        assertThat(sessionId.version()).isEqualTo(7)
+        assertThat(familyId.version()).isEqualTo(7)
+        assertThat(accessTokenId.version()).isEqualTo(7)
         assertThat(userId.timestampBits()).isEqualTo(clock.millis())
         assertThat(actionTokenId.timestampBits()).isEqualTo(clock.millis())
+        assertThat(sessionId.timestampBits()).isEqualTo(clock.millis())
+        assertThat(familyId.timestampBits()).isEqualTo(clock.millis())
+        assertThat(accessTokenId.timestampBits()).isEqualTo(clock.millis())
     }
 
     @Test

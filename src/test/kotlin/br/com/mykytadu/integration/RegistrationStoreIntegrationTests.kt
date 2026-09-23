@@ -41,7 +41,8 @@ class RegistrationStoreIntegrationTests(
     @BeforeEach
     fun clearIdentityData() {
         jdbcTemplate.update(
-            "TRUNCATE TABLE identity.action_tokens, identity.roles, identity.password_credentials, identity.users",
+            "TRUNCATE TABLE identity.sessions, identity.action_tokens, identity.roles, " +
+                "identity.password_credentials, identity.users",
         )
     }
 

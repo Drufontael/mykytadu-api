@@ -374,19 +374,22 @@ erDiagram
 | `translation` | `translations`, `usage_daily` | módulo Translation | unicidade da chave lógica; contadores não negativos; nenhuma FK para Identity |
 | `public` | nenhuma tabela de negócio | plataforma | apenas extensões explicitamente controladas |
 
-As tabelas `identity.users`, `identity.password_credentials`, `identity.roles`
-e `identity.action_tokens` estão implementadas por migrations Flyway. Sessões e
-tabelas de Translation permanecem propostas até suas respectivas tarefas.
+As tabelas `identity.users`, `identity.password_credentials`, `identity.roles`,
+`identity.action_tokens` e `identity.sessions` estão implementadas por migrations
+Flyway. As tabelas de Translation permanecem propostas até suas respectivas
+tarefas.
 
 ### 8.2 Índices orientados a consultas
 
-Índices iniciais candidatos, a confirmar com consultas reais:
+Índices de Identity implementados para as consultas atuais e candidatos de
+Translation a confirmar com consultas reais:
 
 - `identity.users(normalized_email)` unique;
 - `identity.sessions(refresh_token_hash)` unique;
-- `identity.sessions(user_id)` filtrado ou composto para sessões não revogadas;
+- `identity.sessions(user_id, expires_at)` parcial para sessões não revogadas;
 - `identity.sessions(token_family_id)` para revogação de família;
-- `identity.action_tokens(token_hash)` unique e índice para limpeza por expiração;
+- `identity.action_tokens(token_hash)` unique e `identity.action_tokens(expires_at)`
+  para limpeza por expiração;
 - `translation.translations(content_hash)` unique;
 - `translation.translations(expires_at)` se houver limpeza por TTL;
 - chave primária composta de `translation.usage_daily(day, principal_id)`.

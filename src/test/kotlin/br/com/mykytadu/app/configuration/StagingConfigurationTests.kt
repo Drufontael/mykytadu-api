@@ -9,8 +9,12 @@ class StagingConfigurationTests {
 
     @Test
     fun `staging profile uses external placeholders and disables local compose`() {
-        val properties = YamlPropertySourceLoader()
+        val loader = YamlPropertySourceLoader()
+        val properties = loader
             .load("application-staging", ClassPathResource("application-staging.yaml"))
+            .single()
+        val baseProperties = loader
+            .load("application", ClassPathResource("application.yaml"))
             .single()
 
         assertThat(properties.getProperty("spring.config.activate.on-profile")).isEqualTo("staging")
@@ -23,6 +27,18 @@ class StagingConfigurationTests {
             .isEqualTo("\${MYKYTADU_DATABASE_PASSWORD}")
         assertThat(properties.getProperty("server.port"))
             .isEqualTo("\${MYKYTADU_SERVER_PORT:8081}")
+        assertThat(properties.getProperty("mykytadu.identity.authentication.allowed-web-origins"))
+            .isEqualTo("\${MYKYTADU_WEB_ALLOWED_ORIGINS}")
+        assertThat(properties.getProperty("mykytadu.identity.jwt.issuer"))
+            .isEqualTo("\${MYKYTADU_JWT_ISSUER}")
+        assertThat(baseProperties.getProperty("mykytadu.identity.jwt.active-key-id"))
+            .isEqualTo("\${MYKYTADU_JWT_ACTIVE_KEY_ID:}")
+        assertThat(baseProperties.getProperty("mykytadu.identity.jwt.private-key-pem"))
+            .isEqualTo("\${MYKYTADU_JWT_PRIVATE_KEY_PEM:}")
+        assertThat(baseProperties.getProperty("mykytadu.identity.jwt.public-key-pem"))
+            .isEqualTo("\${MYKYTADU_JWT_PUBLIC_KEY_PEM:}")
+        assertThat(baseProperties.getProperty("mykytadu.identity.jwt.key-mode"))
+            .isEqualTo("configured")
         assertThat(properties.source.toString())
             .doesNotContain("mykytadu-local", "localhost", "password: <")
     }

@@ -143,6 +143,7 @@ de versão ou exceção formal registrada.
 
 | Versão | Data | Estado | Mudança |
 |---|---|---|---|
-| `0.3.0` | 2026-09-18 | Atual | Adicionado `POST /auth/verify-email/resend`, erro `email_delivery_unavailable` e `clientId` opcional no login; ausência preserva o fluxo nativo legado, sem alterar requests existentes |
+| `0.3.1` | 2026-09-22 | Atual | Declarados `Origin` opcional e resposta `403 csrf_invalid` no login Web, alinhando o contrato ao controle já aprovado no ADR-011 |
+| `0.3.0` | 2026-09-18 | Anterior | Adicionado `POST /auth/verify-email/resend`, erro `email_delivery_unavailable` e `clientId` opcional no login; ausência preserva o fluxo nativo legado, sem alterar requests existentes |
 | `0.2.0` | 2026-09-17 | Anterior | Adicionado `authorization_denied` para respostas `403` de autorização; Problem Details passou a ser centralizado por código tipado no backend |
 | `0.1.0` | 2026-09-17 | Anterior | Contrato inicial de Identity e Translation em `/api/v1`; sem depreciações e sem versão anterior suportada |

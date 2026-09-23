@@ -16,5 +16,8 @@ server:
 
 mykytadu:
   identity:
+    jwt:
+      active-key-id: local-ephemeral
+      key-mode: ephemeral
     email:
       delivery-mode: accept

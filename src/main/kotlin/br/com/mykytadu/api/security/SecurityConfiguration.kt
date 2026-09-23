@@ -29,6 +29,10 @@ class SecurityConfiguration {
                 it.authenticationEntryPoint(authenticationEntryPoint)
                 it.accessDeniedHandler(accessDeniedHandler)
             }
+            .oauth2ResourceServer {
+                it.authenticationEntryPoint(authenticationEntryPoint)
+                it.jwt { }
+            }
             .authorizeHttpRequests {
                 it.requestMatchers(
                     HttpMethod.GET,
@@ -37,6 +41,7 @@ class SecurityConfiguration {
                 ).permitAll()
                 it.requestMatchers(
                     HttpMethod.POST,
+                    "/api/v1/auth/login",
                     "/api/v1/auth/register",
                     "/api/v1/auth/verify-email",
                     "/api/v1/auth/verify-email/resend",

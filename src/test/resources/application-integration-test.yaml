@@ -11,5 +11,8 @@ spring:
 
 mykytadu:
   identity:
+    jwt:
+      active-key-id: integration-ephemeral
+      key-mode: ephemeral
     email:
       delivery-mode: accept

@@ -1,12 +1,15 @@
 package br.com.mykytadu.identity.infrastructure.security
 
 import br.com.mykytadu.identity.application.port.out.ActionTokenCryptography
+import br.com.mykytadu.identity.application.port.out.SessionTokenCryptography
 import br.com.mykytadu.identity.domain.model.TokenHash
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Base64
 
-internal class SecureActionTokenCryptography(private val secureRandom: SecureRandom) : ActionTokenCryptography {
+internal class SecureActionTokenCryptography(private val secureRandom: SecureRandom) :
+    ActionTokenCryptography,
+    SessionTokenCryptography {
 
     override fun generateToken(): String {
         val bytes = ByteArray(TOKEN_BYTES)
