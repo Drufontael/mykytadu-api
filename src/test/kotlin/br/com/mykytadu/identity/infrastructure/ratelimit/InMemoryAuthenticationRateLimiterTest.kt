@@ -4,10 +4,8 @@ import br.com.mykytadu.identity.application.port.out.RateLimitDecision
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
-import java.time.Clock
 import java.time.Duration
 import java.time.Instant
-import java.time.ZoneOffset
 
 class InMemoryAuthenticationRateLimiterTest {
 
@@ -29,10 +27,30 @@ class InMemoryAuthenticationRateLimiterTest {
             .isInstanceOf(IllegalArgumentException::class.java)
     }
 
-    private fun limiter(limit: Int = 2, window: Duration = Duration.ofMinutes(10)): InMemoryAuthenticationRateLimiter =
-        InMemoryAuthenticationRateLimiter(
-            clock = Clock.fixed(Instant.parse("2026-09-22T12:00:00Z"), ZoneOffset.UTC),
-            limit = limit,
-            window = window,
-        )
+    @Test
+    fun `resets the login limit exactly at the configured window`() {
+        val clock = MutableTestClock(NOW)
+        val limiter = limiter(clock = clock)
+
+        repeat(2) { assertThat(limiter.acquireLogin("origin-hash")).isEqualTo(RateLimitDecision.Allowed) }
+        assertThat(limiter.acquireLogin("origin-hash")).isEqualTo(RateLimitDecision.Rejected(600))
+
+        clock.advance(Duration.ofMinutes(10))
+
+        assertThat(limiter.acquireLogin("origin-hash")).isEqualTo(RateLimitDecision.Allowed)
+    }
+
+    private fun limiter(
+        clock: java.time.Clock = MutableTestClock(NOW),
+        limit: Int = 2,
+        window: Duration = Duration.ofMinutes(10),
+    ): InMemoryAuthenticationRateLimiter = InMemoryAuthenticationRateLimiter(
+        clock = clock,
+        limit = limit,
+        window = window,
+    )
+
+    companion object {
+        private val NOW = Instant.parse("2026-09-22T12:00:00Z")
+    }
 }

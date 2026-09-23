@@ -63,4 +63,7 @@ data class AuthenticatedPrincipal(
     val emailVerifiedAt: Instant,
     val createdAt: Instant,
     val updatedAt: Instant,
-)
+) {
+    override fun toString(): String =
+        "AuthenticatedPrincipal(id=[REDACTED], email=[REDACTED], displayName=[REDACTED], roles=$roles)"
+}

@@ -83,4 +83,7 @@ data class RegisteredUser(
     val emailVerifiedAt: Instant?,
     val createdAt: Instant,
     val updatedAt: Instant,
-)
+) {
+    override fun toString(): String =
+        "RegisteredUser(id=[REDACTED], email=[REDACTED], displayName=[REDACTED], status=$status, roles=$roles)"
+}

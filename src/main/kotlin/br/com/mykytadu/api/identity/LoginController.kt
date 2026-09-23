@@ -125,4 +125,7 @@ internal data class SessionResponse(
     val refreshToken: String?,
     val csrfToken: String?,
     val user: UserProfileResponse,
-)
+) {
+    override fun toString(): String =
+        "SessionResponse(accessToken=[REDACTED], refreshToken=[REDACTED], csrfToken=[REDACTED], user=$user)"
+}

@@ -46,4 +46,8 @@ data class InitialSession(
     val csrfToken: String?,
     val principal: AuthenticatedPrincipal,
     val client: AuthenticationClient,
-)
+) {
+    override fun toString(): String =
+        "InitialSession(accessToken=[REDACTED], refreshToken=[REDACTED], csrfToken=[REDACTED], " +
+            "principal=$principal, client=$client)"
+}

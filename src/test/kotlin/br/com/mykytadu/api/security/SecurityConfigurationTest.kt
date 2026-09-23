@@ -10,6 +10,7 @@ import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
+import org.springframework.context.annotation.Profile
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -133,6 +134,7 @@ internal class FixedTestJwtDecoder : JwtDecoder {
 }
 
 @RestController
+@Profile("test")
 private class SecurityFixtureController {
 
     @GetMapping("/test/security/protected")

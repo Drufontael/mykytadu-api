@@ -160,6 +160,9 @@ internal data class UserProfileResponse(
     val emailVerifiedAt: Instant?,
     val createdAt: Instant,
     val updatedAt: Instant,
-)
+) {
+    override fun toString(): String =
+        "UserProfileResponse(id=[REDACTED], email=[REDACTED], displayName=[REDACTED], status=$status, roles=$roles)"
+}
 
 internal data class ActionAcceptedResponse(val accepted: Boolean)
