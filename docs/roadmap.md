@@ -55,7 +55,7 @@ O roadmap apresenta apenas o estado consolidado. Histórico, evidências, bloque
 | B0.2 | **Concluída** | 2026-09-17 | 2026-09-17 | [Contrato primeiro e habilitação do frontend](sprints/B0.2.md) |
 | B1.1 | **Concluída** | 2026-09-17 | 2026-09-17 | [Fundação modular e qualidade](sprints/B1.1.md) |
 | B1.2 | **Concluída** | 2026-09-17 | 2026-09-17 | [Banco, migrações e observabilidade](sprints/B1.2.md) |
-| B2.1 | **Em andamento** | 2026-09-18 | — | [Cadastro, verificação e login](sprints/B2.1.md) |
+| B2.1 | **Concluída** | 2026-09-18 | 2026-09-23 | [Cadastro, verificação e login](sprints/B2.1.md) |
 | B2.2 | Não iniciada | — | — | a criar no planejamento da sprint |
 | B2.3 | Não iniciada | — | — | a criar no planejamento da sprint |
 | B3.1 | Não iniciada | — | — | a criar no planejamento da sprint |
