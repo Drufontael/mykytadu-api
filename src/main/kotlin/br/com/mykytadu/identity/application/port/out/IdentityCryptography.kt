@@ -17,6 +17,11 @@ interface PasswordHasher {
     fun hash(password: CharSequence): PasswordHash
 }
 
+interface PasswordVerifier {
+
+    fun matches(password: CharSequence, expectedHash: PasswordHash?): Boolean
+}
+
 interface ActionTokenCryptography {
 
     fun generateToken(): String

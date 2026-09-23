@@ -1,9 +1,6 @@
 package br.com.mykytadu.identity.infrastructure
 
 import br.com.mykytadu.identity.application.RegistrationApplicationProperties
-import br.com.mykytadu.identity.application.port.out.ActionTokenCryptography
-import br.com.mykytadu.identity.application.port.out.IdentityIdGenerator
-import br.com.mykytadu.identity.application.port.out.PasswordHasher
 import br.com.mykytadu.identity.application.port.out.RegistrationRateLimiter
 import br.com.mykytadu.identity.application.port.out.RegistrationTelemetry
 import br.com.mykytadu.identity.application.port.out.VerificationEmailSender
@@ -35,15 +32,16 @@ internal class IdentityRegistrationConfiguration {
     fun identitySecureRandom(): SecureRandom = SecureRandom()
 
     @Bean
-    fun identityIdGenerator(clock: Clock, secureRandom: SecureRandom): IdentityIdGenerator =
+    fun identityIdGenerator(clock: Clock, secureRandom: SecureRandom): SecureIdentityIdGenerator =
         SecureIdentityIdGenerator(clock, secureRandom)
 
     @Bean
-    fun actionTokenCryptography(secureRandom: SecureRandom): ActionTokenCryptography =
+    fun actionTokenCryptography(secureRandom: SecureRandom): SecureActionTokenCryptography =
         SecureActionTokenCryptography(secureRandom)
 
     @Bean
-    fun passwordHasher(): PasswordHasher = Argon2PasswordHasher(Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8())
+    fun argon2PasswordHasher(): Argon2PasswordHasher =
+        Argon2PasswordHasher(Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8())
 
     @Bean
     fun verificationEmailSender(properties: IdentityRegistrationConfigurationProperties): VerificationEmailSender =
@@ -78,6 +76,7 @@ internal class IdentityRegistrationConfiguration {
 @ConfigurationProperties("mykytadu.identity")
 data class IdentityRegistrationConfigurationProperties(
     val registration: RegistrationPolicyProperties = RegistrationPolicyProperties(),
+    val authentication: AuthenticationPolicyProperties = AuthenticationPolicyProperties(),
     val email: EmailProperties = EmailProperties(),
 )
 
@@ -89,6 +88,11 @@ data class RegistrationPolicyProperties(
     val resendLimit: Int = 5,
     val resendWindow: Duration = Duration.ofHours(1),
     val resendCooldown: Duration = Duration.ofMinutes(1),
+)
+
+data class AuthenticationPolicyProperties(
+    val loginLimit: Int = 10,
+    val loginWindow: Duration = Duration.ofMinutes(10),
 )
 
 data class EmailProperties(val deliveryMode: EmailDeliveryMode = EmailDeliveryMode.UNAVAILABLE)

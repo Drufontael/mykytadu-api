@@ -14,6 +14,9 @@ spring:
 
 mykytadu:
   identity:
+    authentication:
+      login-limit: 10
+      login-window: 10m
     registration:
       verification-token-ttl: 24h
       delivery-retry-after: 60s
