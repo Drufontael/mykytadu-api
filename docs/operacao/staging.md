@@ -1,13 +1,28 @@
 # MykytaDu API — Checklist de staging
 
 > **Status:** preparado, não ativado
-> **Versão:** 0.2
-> **Data de referência:** 22 de setembro de 2026
+> **Versão:** 0.3
+> **Data de referência:** 23 de setembro de 2026
 
 Este documento valida a composição de staging sem provisionar recursos remotos.
 O profile `staging` desabilita Docker Compose, usa PostgreSQL externo e recebe
 segredos somente do ambiente de execução. O Render continua sendo apenas o alvo
 aprovado no [ADR-015](../adr/ADR-015-render-como-hospedagem-alvo-da-api.md).
+
+## Topologia de implantação
+
+Staging executará a mesma imagem candidata validada pelo CI, contendo todos os
+módulos lógicos do monólito modular. Cada réplica é uma unidade completa da API;
+Identity ou Translation não são ativados, desativados ou escalados
+separadamente por profile. O profile `staging` altera apenas a composição
+técnica, como datasource externo, secrets, porta e integração com a plataforma.
+
+A aplicação é stateless quanto ao processo, e o estado durável permanece no
+PostgreSQL. Uma futura escala horizontal deve preservar concorrência, rotação
+de sessões e consistência e depende da resolução da P-010 para rate limit entre
+instâncias. Uma eventual extração física de módulo segue os critérios da
+[modelagem](../modelagem.md#15-evolução-arquitetural-esperada) e exige ADR; não
+é uma opção operacional implícita desta configuração.
 
 ## 1. Variáveis do ambiente
 

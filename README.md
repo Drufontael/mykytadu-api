@@ -9,10 +9,11 @@ Pré-requisitos:
 - Java 25 disponível no terminal;
 - Docker Desktop ou Docker Engine em execução;
 - Docker Compose v2;
-- Node.js 22.12.0 ou superior com `npx` disponível;
+- Node.js 22.12.0 ou superior com `npx`, usado somente pelo gate que valida o
+  contrato OpenAPI com Redocly; ele não participa da execução da API;
 - Git.
 
-No PowerShell, valide a máquina e execute todos os gates:
+No PowerShell, valide a máquina e execute o gate completo:
 
 ```powershell
 java -version
@@ -24,11 +25,34 @@ npx --version
 .\gradlew.bat check --no-daemon --stacktrace
 ```
 
-Inicie a aplicação com o profile local:
+Em Linux ou macOS, use os comandos equivalentes:
+
+```bash
+java -version
+docker version
+docker compose version
+node --version
+npx --version
+./gradlew --version
+./gradlew check --no-daemon --stacktrace
+```
+
+Inicie a aplicação com o profile local no PowerShell:
 
 ```powershell
 .\gradlew.bat bootRun --args="--spring.profiles.active=local"
 ```
+
+Em Linux ou macOS:
+
+```bash
+./gradlew bootRun --args='--spring.profiles.active=local'
+```
+
+Durante o desenvolvimento, prefira testes e verificações direcionadas. O
+`check` acima é o gate obrigatório antes de declarar uma alteração pronta;
+consulte o [guia de contribuição](CONTRIBUTING.md) para os comandos rápidos e
+a equivalência com o CI.
 
 O Spring Boot inicia ou reutiliza o PostgreSQL definido em `compose.yaml`. A API local fica em `http://localhost:8081`; quando estiver pronta, consulte:
 

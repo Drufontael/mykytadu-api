@@ -1,13 +1,36 @@
 # MykytaDu API — Estratégia de migrações por ambiente
 
 > **Status:** vigente
-> **Versão:** 0.1
-> **Data de referência:** 17 de setembro de 2026
+> **Versão:** 0.2
+> **Data de referência:** 23 de setembro de 2026
 
 Este documento define como o schema evolui em cada ambiente. Flyway é o único
 mecanismo de evolução; Hibernate somente valida o schema (`ddl-auto: validate`).
 Nenhum procedimento desta página edita uma migration aplicada ou executa
 rollback destrutivo automaticamente.
+
+## Unidade de execução e ownership
+
+O monólito modular possui um único ciclo Flyway, executado pela aplicação
+completa. Todas as migrations versionadas compõem uma sequência global e são
+aplicadas pelo mesmo artefato; ownership por módulo não significa criar
+executores, históricos ou pipelines Flyway independentes.
+
+O ownership é lógico e obrigatório:
+
+- Identity altera somente objetos do schema `identity`;
+- Translation altera somente objetos do schema `translation`;
+- `public` permanece sem tabelas de negócio;
+- não são criadas foreign keys entre schemas pertencentes a módulos distintos.
+
+Quando uma evolução envolver mais de um módulo, cada mudança deve respeitar o
+schema do seu owner e permanecer compatível durante a implantação. A
+coordenação ocorre por interfaces públicas, eventos ou etapas compatíveis do
+padrão expandir/contrair, nunca por acesso direto às tabelas do outro módulo.
+
+Separar diretórios, processos de execução ou pipelines de migration só será
+avaliado se houver unidade de deploy independente ou benefício operacional
+mensurável, precedido pela decisão arquitetural correspondente.
 
 ## 1. Matriz por ambiente
 

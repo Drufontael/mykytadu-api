@@ -1,8 +1,8 @@
 # Contribuindo com o MykytaDu API
 
 > **Status:** vigente
-> **Versão:** 0.1
-> **Data de referência:** 17 de setembro de 2026
+> **Versão:** 0.2
+> **Data de referência:** 23 de setembro de 2026
 
 Este documento é o ponto de entrada para preparar o ambiente, executar os
 gates e revisar uma alteração do `mykytadu-api`. Ele resume o fluxo comum e
@@ -12,7 +12,9 @@ encaminha os detalhes para os documentos canônicos.
 
 - Java 25;
 - Docker Desktop ou Docker Engine com Docker Compose v2;
-- Node.js 22.12.0 ou superior com `npx`;
+- Node.js 22.12.0 ou superior com `npx`, exclusivamente para executar o
+  Redocly CLI no lint do contrato OpenAPI; a API não depende de Node.js em
+  runtime;
 - Git;
 - acesso ao repositório e à branch da sprint correspondente.
 
@@ -42,6 +44,9 @@ npx --version
 
 O wrapper deve informar Gradle 9.5.0 e uma JVM Java 25. O Docker precisa estar
 disponível para Testcontainers, PostgreSQL local e construção da imagem OCI.
+O Node.js participa dos gates de desenvolvimento e CI porque o task
+`openApiLint` chama a versão fixada do Redocly; ele não compõe a aplicação nem
+a imagem executada em produção.
 
 ## 2. Fluxo recomendado
 
@@ -156,8 +161,10 @@ Executar uma classe ou categoria:
 ```
 
 Verificações individuais e seus relatórios estão descritos em
-[qualidade estática e cobertura](docs/qualidade.md). O comando oficial antes da
-entrega é:
+[qualidade estática e cobertura](docs/qualidade.md). Durante a implementação,
+execute a menor verificação que forneça feedback sobre a alteração; os comandos
+direcionados usam o comportamento padrão do Gradle e podem reutilizar o daemon.
+O comando oficial e completo antes da entrega é:
 
 PowerShell:
 
