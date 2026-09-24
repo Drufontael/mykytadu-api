@@ -1,8 +1,8 @@
 # Imagem OCI
 
 > **Status:** vigente
-> **Versão:** 0.1
-> **Data de referência:** 17 de setembro de 2026
+> **Versão:** 0.2
+> **Data de referência:** 23 de setembro de 2026
 
 ## Objetivo
 
@@ -11,6 +11,28 @@ Native Buildpacks do Spring Boot e o builder Paketo com digest fixado. O
 processo não publica a imagem em registry e não substitui a configuração de
 deploy definida para o Render; nesta fase ele prepara e valida o artefato
 local.
+
+## Unidade de implantação
+
+A imagem contém a aplicação completa e os módulos lógicos `app`, `api`,
+`identity`, `translation` e `shared`. Spring Modulith verifica as fronteiras
+internas, mas não transforma esses módulos em processos, imagens ou unidades de
+escala independentes. O baseline aprovado no
+[ADR-001](../adr/ADR-001-adotar-monolito-modular.md) e no
+[ADR-002](../adr/ADR-002-separar-identity-e-translation.md) permanece um único
+build, uma única imagem e um único deploy.
+
+Quando houver mais de uma instância, cada réplica executará a aplicação inteira.
+Os processos permanecem stateless, enquanto sessões duráveis e demais dados
+ficam no PostgreSQL. Antes de escalar horizontalmente, a decisão P-010 sobre
+rate limit multi-instância precisa ser resolvida; Redis ou outra tecnologia não
+é pressuposta.
+
+Profiles selecionam composição técnica e configuração de ambiente. Eles não
+ativam ou desativam módulos de negócio por container. Uma possível extração de
+Translation exige evidência de escala, disponibilidade, custo, equipe ou ciclo
+de deploy, além de decisão arquitetural anterior à implementação, conforme a
+[modelagem evolutiva](../modelagem.md#15-evolução-arquitetural-esperada).
 
 ## Construção local
 
@@ -79,4 +101,5 @@ local do PostgreSQL.
 - não há publicação em registry;
 - não há deploy automático;
 - o job dedicado à imagem foi adicionado em B1.1-T5, mas não publica em registry;
+- os módulos não são publicados nem escalados separadamente;
 - a definição operacional do Render permanece no [ADR-015](../adr/ADR-015-render-como-hospedagem-alvo-da-api.md).
