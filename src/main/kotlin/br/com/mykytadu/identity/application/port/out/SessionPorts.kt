@@ -8,6 +8,9 @@ import java.util.UUID
 
 interface SessionStore {
     fun create(session: Session)
+    fun update(session: Session)
+    fun findById(sessionId: SessionId): Session?
+    fun findByRefreshTokenHashForUpdate(refreshTokenHash: TokenHash): Session?
 }
 
 interface SessionIdGenerator {

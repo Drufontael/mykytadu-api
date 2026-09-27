@@ -116,6 +116,15 @@ class LoginServiceTest {
         override fun create(session: Session) {
             this.session = session
         }
+
+        override fun update(session: Session) {
+            this.session = session
+        }
+
+        override fun findById(sessionId: SessionId): Session? = session?.takeIf { it.id == sessionId }
+
+        override fun findByRefreshTokenHashForUpdate(refreshTokenHash: TokenHash): Session? =
+            session?.takeIf { it.refreshTokenHash == refreshTokenHash }
     }
 
     private class FixedSessionTokens : SessionTokenCryptography {

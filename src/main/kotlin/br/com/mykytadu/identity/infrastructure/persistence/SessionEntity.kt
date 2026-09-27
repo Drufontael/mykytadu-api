@@ -31,4 +31,20 @@ internal class SessionEntity(
     val revokeReason: String?,
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant,
+    @Column(name = "parent_session_id")
+    val parentSessionId: UUID?,
+    @Column(name = "rotated_to_session_id")
+    val rotatedToSessionId: UUID?,
+    @Column(name = "rotation_idempotency_key_hash")
+    val rotationIdempotencyKeyHash: String?,
+    @Column(name = "refresh_derivation_kid")
+    val refreshDerivationKeyId: String?,
+    @Column(name = "replay_until")
+    val replayUntil: Instant?,
+    @Column(name = "replay_access_token_id")
+    val replayAccessTokenId: UUID?,
+    @Column(name = "replay_access_issued_at")
+    val replayAccessIssuedAt: Instant?,
+    @Column(name = "replay_access_expires_at")
+    val replayAccessExpiresAt: Instant?,
 )

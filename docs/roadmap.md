@@ -1,8 +1,8 @@
 # MykytaDu API — Roadmap de entrega
 
 > **Status:** proposta executável derivada do documento mestre
-> **Versão:** 0.4
-> **Data de referência:** 23 de setembro de 2026
+> **Versão:** 0.5
+> **Data de referência:** 27 de setembro de 2026
 > **Documento de origem:** [Documento Mestre Backend](documento-mestre-backend.md)
 
 ## 1. Objetivo
@@ -57,7 +57,7 @@ O roadmap apresenta apenas o estado consolidado. Histórico, evidências, bloque
 | B1.2 | **Concluída** | 2026-09-17 | 2026-09-17 | [Banco, migrações e observabilidade](sprints/B1.2.md) |
 | B2.1 | **Concluída** | 2026-09-18 | 2026-09-23 | [Cadastro, verificação e login](sprints/B2.1.md) |
 | B-2 | **Concluída** | 2026-09-23 | 2026-09-23 | [Onboarding e operação documental](sprints/B-2.md) |
-| B2.2 | Não iniciada | — | — | a criar no planejamento da sprint |
+| B2.2 | **Em andamento** | 2026-09-27 | — | [Sessões, refresh e logout](sprints/B2.2.md) |
 | B2.3 | Não iniciada | — | — | a criar no planejamento da sprint |
 | B3.1 | Não iniciada | — | — | a criar no planejamento da sprint |
 | B3.2 | Não iniciada | — | — | a criar no planejamento da sprint |
