@@ -10,6 +10,7 @@ import br.com.mykytadu.identity.infrastructure.observability.MicrometerRegistrat
 import br.com.mykytadu.identity.infrastructure.ratelimit.InMemoryRegistrationRateLimiter
 import br.com.mykytadu.identity.infrastructure.security.Argon2PasswordHasher
 import br.com.mykytadu.identity.infrastructure.security.JwtConfigurationProperties
+import br.com.mykytadu.identity.infrastructure.security.RefreshDerivationProperties
 import br.com.mykytadu.identity.infrastructure.security.SecureActionTokenCryptography
 import br.com.mykytadu.identity.infrastructure.security.SecureIdentityIdGenerator
 import io.micrometer.core.instrument.MeterRegistry
@@ -78,6 +79,7 @@ internal class IdentityRegistrationConfiguration {
 data class IdentityRegistrationConfigurationProperties(
     val registration: RegistrationPolicyProperties = RegistrationPolicyProperties(),
     val authentication: AuthenticationPolicyProperties = AuthenticationPolicyProperties(),
+    val refreshDerivation: RefreshDerivationProperties = RefreshDerivationProperties(),
     val jwt: JwtConfigurationProperties = JwtConfigurationProperties(),
     val email: EmailProperties = EmailProperties(),
 )
@@ -97,6 +99,7 @@ data class AuthenticationPolicyProperties(
     val loginWindow: Duration = Duration.ofMinutes(10),
     val accessTokenTtl: Duration = Duration.ofMinutes(10),
     val refreshTokenTtl: Duration = Duration.ofDays(30),
+    val refreshReplayWindow: Duration = Duration.ofMinutes(2),
     val allowedWebOrigins: Set<String> = setOf("http://localhost:8080"),
 )
 

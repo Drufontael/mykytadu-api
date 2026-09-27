@@ -107,6 +107,7 @@ class SecurityConfigurationTest(
         strings = [
             "/api/v1/auth/register",
             "/api/v1/auth/login",
+            "/api/v1/auth/refresh",
             "/api/v1/auth/verify-email",
             "/api/v1/auth/verify-email/resend",
         ],
@@ -118,6 +119,11 @@ class SecurityConfigurationTest(
         }.andExpect {
             status { isNoContent() }
         }
+    }
+
+    @Test
+    fun `explicitly permits csrf reissuance`() {
+        mockMvc.get("/api/v1/auth/csrf").andExpect { status { isNoContent() } }
     }
 }
 
@@ -142,10 +148,15 @@ private class SecurityFixtureController {
 
     @PostMapping(
         "/api/v1/auth/login",
+        "/api/v1/auth/refresh",
         "/api/v1/auth/register",
         "/api/v1/auth/verify-email",
         "/api/v1/auth/verify-email/resend",
     )
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun publicRegistrationSurface() = Unit
+
+    @GetMapping("/api/v1/auth/csrf")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun publicCsrfSurface() = Unit
 }

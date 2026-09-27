@@ -1,8 +1,8 @@
 # MykytaDu API — Checklist de staging
 
 > **Status:** preparado, não ativado
-> **Versão:** 0.3
-> **Data de referência:** 23 de setembro de 2026
+> **Versão:** 0.4
+> **Data de referência:** 27 de setembro de 2026
 
 Este documento valida a composição de staging sem provisionar recursos remotos.
 O profile `staging` desabilita Docker Compose, usa PostgreSQL externo e recebe
@@ -38,6 +38,10 @@ instâncias. Uma eventual extração física de módulo segue os critérios da
 | `MYKYTADU_JWT_PUBLIC_KEY_PEM` | sim | sensível | chave RSA X.509 correspondente à chave ativa |
 | `MYKYTADU_JWT_ISSUER` | sim | configuração | issuer HTTPS exato usado na emissão e validação |
 | `MYKYTADU_WEB_ALLOWED_ORIGINS` | sim | configuração | allowlist exata de origens Web, separadas por vírgula |
+| `MYKYTADU_REFRESH_ACTIVE_KEY_ID` | sim | configuração | identificador da chave HMAC ativa usada na derivação de refresh |
+| `MYKYTADU_REFRESH_ACTIVE_KEY_BASE64` | sim | segredo | chave HMAC ativa com pelo menos 32 bytes, codificada em Base64 e injetada pelo secret manager |
+| `MYKYTADU_REFRESH_PREVIOUS_KEY_ID` | não | configuração | `kid` anterior mantido até expirar a maior janela de replay emitida com ele |
+| `MYKYTADU_REFRESH_PREVIOUS_KEY_BASE64` | não | segredo | chave HMAC anterior; deve acompanhar o `kid` anterior |
 | `MYKYTADU_IDENTITY_JWT_PREVIOUS_KEY_ID` | não | configuração | `kid` anterior mantido durante a janela de rotação |
 | `MYKYTADU_IDENTITY_JWT_PREVIOUS_PUBLIC_KEY_PEM` | não | sensível | chave pública anterior; deve acompanhar o `kid` anterior |
 
@@ -94,6 +98,8 @@ $env:MYKYTADU_JWT_PRIVATE_KEY_PEM = "<pkcs8-injetada-pelo-secret-manager>"
 $env:MYKYTADU_JWT_PUBLIC_KEY_PEM = "<x509-publica-correspondente>"
 $env:MYKYTADU_JWT_ISSUER = "https://<host-staging>"
 $env:MYKYTADU_WEB_ALLOWED_ORIGINS = "https://<frontend-staging>"
+$env:MYKYTADU_REFRESH_ACTIVE_KEY_ID = "<kid-refresh-ativo>"
+$env:MYKYTADU_REFRESH_ACTIVE_KEY_BASE64 = "<chave-hmac-base64-injetada-pelo-secret-manager>"
 .\gradlew.bat bootRun
 ```
 

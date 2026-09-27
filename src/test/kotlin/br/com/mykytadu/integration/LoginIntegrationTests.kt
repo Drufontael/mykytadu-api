@@ -1,9 +1,14 @@
 package br.com.mykytadu.integration
 
 import br.com.mykytadu.identity.api.AuthenticationClient
+import br.com.mykytadu.identity.api.CsrfOutcome
 import br.com.mykytadu.identity.api.IdentityLogin
+import br.com.mykytadu.identity.api.IdentitySession
 import br.com.mykytadu.identity.api.LoginCommand
 import br.com.mykytadu.identity.api.LoginOutcome
+import br.com.mykytadu.identity.api.RefreshOutcome
+import br.com.mykytadu.identity.api.RefreshSessionCommand
+import br.com.mykytadu.identity.api.ReissueCsrfCommand
 import br.com.mykytadu.identity.application.port.out.AccessTokenValidator
 import br.com.mykytadu.identity.application.port.out.PasswordHasher
 import br.com.mykytadu.identity.application.port.out.UserAccountRepository
@@ -30,6 +35,7 @@ import java.util.UUID
 @ActiveProfiles("integration-test")
 class LoginIntegrationTests(
     @Autowired private val login: IdentityLogin,
+    @Autowired private val sessions: IdentitySession,
     @Autowired private val accounts: UserAccountRepository,
     @Autowired private val passwordHasher: PasswordHasher,
     @Autowired private val accessTokens: AccessTokenValidator,
@@ -81,6 +87,52 @@ class LoginIntegrationTests(
         assertThat(jdbcTemplate.queryForObject("SELECT csrf_token_hash FROM identity.sessions", String::class.java))
             .hasSize(64)
             .isNotEqualTo(outcome.session.csrfToken)
+    }
+
+    @Test
+    fun `rotates and idempotently replays a native session in PostgreSQL`() {
+        val initial = (login.login(command(AuthenticationClient.ANDROID)) as LoginOutcome.Created).session
+        val refreshCommand = RefreshSessionCommand(
+            refreshToken = requireNotNull(initial.refreshToken),
+            idempotencyKey = "integration-request-1",
+            csrfToken = null,
+            origin = null,
+            web = false,
+        )
+
+        val first = sessions.refresh(refreshCommand) as RefreshOutcome.Refreshed
+        val replay = sessions.refresh(refreshCommand) as RefreshOutcome.Refreshed
+
+        assertThat(first.session.refreshToken).isEqualTo(replay.session.refreshToken)
+        assertThat(first.session.accessToken).isEqualTo(replay.session.accessToken)
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM identity.sessions", Int::class.java)).isEqualTo(2)
+        assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM identity.sessions WHERE revoke_reason = 'rotated' AND replay_until IS NOT NULL",
+                Int::class.java,
+            ),
+        ).isEqualTo(1)
+    }
+
+    @Test
+    fun `reissues csrf and rotates the Web session with a fresh csrf`() {
+        val initial = (
+            login.login(command(AuthenticationClient.WEB, "http://localhost:8080")) as LoginOutcome.Created
+            ).session
+        val csrf = sessions.reissueCsrf(ReissueCsrfCommand(requireNotNull(initial.refreshToken))) as CsrfOutcome.Issued
+
+        val refreshed = sessions.refresh(
+            RefreshSessionCommand(
+                refreshToken = initial.refreshToken,
+                idempotencyKey = "integration-web-request-1",
+                csrfToken = csrf.csrfToken,
+                origin = "http://localhost:8080",
+                web = true,
+            ),
+        ) as RefreshOutcome.Refreshed
+
+        assertThat(refreshed.session.refreshToken).isNotEqualTo(initial.refreshToken)
+        assertThat(refreshed.session.csrfToken).isNotBlank().isNotEqualTo(csrf.csrfToken)
     }
 
     private fun command(client: AuthenticationClient, origin: String? = null) = LoginCommand(

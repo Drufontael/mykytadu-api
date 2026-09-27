@@ -11,6 +11,9 @@ spring:
 
 mykytadu:
   identity:
+    refresh-derivation:
+      active-key-id: integration-ephemeral
+      key-mode: ephemeral
     jwt:
       active-key-id: integration-ephemeral
       key-mode: ephemeral

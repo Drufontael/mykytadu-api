@@ -165,6 +165,8 @@ class AuthenticationServiceTest {
             lookups += 1
             return account
         }
+
+        override fun findById(userId: UserId): UserAccount? = account?.takeIf { it.user.id == userId }
     }
 
     private class RecordingPasswordVerifier(private val matches: Boolean = true) : PasswordVerifier {

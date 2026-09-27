@@ -16,6 +16,9 @@ server:
 
 mykytadu:
   identity:
+    refresh-derivation:
+      active-key-id: local-ephemeral
+      key-mode: ephemeral
     jwt:
       active-key-id: local-ephemeral
       key-mode: ephemeral

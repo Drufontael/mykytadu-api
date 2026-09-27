@@ -68,6 +68,24 @@ class Session private constructor(
         replay.idempotencyKeyHash == idempotencyKeyHash && instant.isBefore(replay.replayUntil)
     } ?: false
 
+    fun reissueCsrf(csrfTokenHash: TokenHash): Session {
+        check(clientId == WEB_CLIENT_ID && revokedAt == null) { "Only an active Web session can reissue CSRF" }
+        return Session(
+            id,
+            userId,
+            refreshTokenHash,
+            tokenFamilyId,
+            clientId,
+            csrfTokenHash,
+            expiresAt,
+            revokedAt,
+            revokeReason,
+            createdAt,
+            parentSessionId,
+            rotationReplay,
+        )
+    }
+
     companion object {
         const val WEB_CLIENT_ID = "mykytadu-web"
 

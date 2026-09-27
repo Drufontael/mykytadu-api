@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: MykytaDu API
-  version: 0.3.1
+  version: 0.4.0
   description: |
     Contrato HTTP inicial do MykytaDu API.
 
@@ -229,9 +229,12 @@ paths:
         Rotaciona atomicamente o refresh token. No Web, o navegador envia o
         cookie automaticamente e também `X-CSRF-Token` e `Origin`; o corpo é
         omitido. Nos clientes nativos, o corpo contém o refresh token opaco
-        lido do cofre seguro. A resposta Web não contém `refreshToken`.
+        lido do cofre seguro. A alternativa sem `refreshCookie` na seção de
+        segurança representa exclusivamente esse corpo nativo. A resposta Web
+        não contém `refreshToken`.
       security:
         - refreshCookie: []
+        - {}
       parameters:
         - $ref: '#/components/parameters/CsrfToken'
         - $ref: '#/components/parameters/Origin'
@@ -564,12 +567,12 @@ components:
     IdempotencyKey:
       name: Idempotency-Key
       in: header
-      required: false
+      required: true
       schema:
         type: string
         minLength: 1
         maxLength: 128
-      description: Chave opcional para repetição segura após resposta de rede desconhecida.
+      description: Chave obrigatória para repetição segura após resposta de rede desconhecida.
 
   headers:
     RefreshCookie:

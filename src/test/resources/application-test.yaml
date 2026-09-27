@@ -20,6 +20,9 @@ management:
 
 mykytadu:
   identity:
+    refresh-derivation:
+      active-key-id: test-ephemeral
+      key-mode: ephemeral
     jwt:
       active-key-id: test-ephemeral
       key-mode: ephemeral

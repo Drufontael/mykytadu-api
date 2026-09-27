@@ -19,8 +19,15 @@ mykytadu:
       login-window: 10m
       access-token-ttl: 10m
       refresh-token-ttl: 30d
+      refresh-replay-window: 2m
       allowed-web-origins:
         - http://localhost:8080
+    refresh-derivation:
+      active-key-id: ${MYKYTADU_REFRESH_ACTIVE_KEY_ID:}
+      key-mode: configured
+      active-key-base64: ${MYKYTADU_REFRESH_ACTIVE_KEY_BASE64:}
+      previous-key-id: ${MYKYTADU_REFRESH_PREVIOUS_KEY_ID:}
+      previous-key-base64: ${MYKYTADU_REFRESH_PREVIOUS_KEY_BASE64:}
     jwt:
       issuer: https://api.mykytadu.com
       audience: mykytadu-api

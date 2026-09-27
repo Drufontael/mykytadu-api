@@ -23,3 +23,9 @@ interface SessionTokenCryptography {
     fun generateToken(): String
     fun hash(token: String): TokenHash
 }
+
+interface RefreshTokenDeriver {
+    val activeKeyId: String
+
+    fun derive(keyId: String, predecessorId: SessionId, successorId: SessionId, idempotencyKey: String): String?
+}
