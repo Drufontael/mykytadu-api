@@ -48,12 +48,15 @@ internal class SessionController(private val sessions: IdentitySession, private 
 
     @PostMapping("/refresh")
     fun refresh(
-        @RequestHeader(IDEMPOTENCY_KEY) @NotBlank @Size(max = 128) idempotencyKey: String,
+        @RequestHeader(IDEMPOTENCY_KEY, required = false) @Size(max = 128) idempotencyKey: String?,
         @RequestHeader(HttpHeaders.ORIGIN, required = false) origin: String?,
         @RequestHeader(CSRF_HEADER, required = false) csrfToken: String?,
         @CookieValue(REFRESH_COOKIE, required = false) cookieRefreshToken: String?,
         @Valid @RequestBody(required = false) request: RefreshRequest?,
     ): ResponseEntity<SessionResponse> {
+        if (idempotencyKey != null && idempotencyKey.isBlank()) {
+            fail(HttpStatus.BAD_REQUEST, ProblemCode.REQUEST_VALIDATION_FAILED)
+        }
         if ((cookieRefreshToken == null) == (request?.refreshToken == null)) {
             fail(HttpStatus.BAD_REQUEST, ProblemCode.REQUEST_VALIDATION_FAILED)
         }

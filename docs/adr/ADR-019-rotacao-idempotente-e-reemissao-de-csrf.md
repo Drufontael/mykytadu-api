@@ -2,6 +2,7 @@
 
 > **Estado:** Aprovado
 > **Data:** 2026-09-27
+> **Revisão:** 2026-09-28 — compatibilidade de `Idempotency-Key` em `/api/v1`
 > **Responsáveis:** equipe MykytaDu API
 > **Sprint/tarefas:** B2.2 / B2.2-T1 e B2.2-T2
 > **Decisões relacionadas:** ADR-005, ADR-011 e ADR-018
@@ -77,9 +78,16 @@ permanecem dentro do schema `identity`.
 
 ### Idempotência do refresh
 
-`Idempotency-Key` passa a ser obrigatória em `POST /auth/refresh`, tanto no Web
-quanto em clientes nativos. A mudança será registrada no OpenAPI antes da
-implementação do endpoint.
+`Idempotency-Key` permanece opcional em `POST /auth/refresh` para preservar o
+contrato já publicado de `/api/v1`. Clientes Web e nativos devem enviá-la e
+reutilizar o mesmo valor quando precisarem repetir uma tentativa após resposta
+de rede desconhecida. Quando o header estiver ausente, a primeira rotação é
+aceita; o servidor gera uma chave aleatória apenas para derivar o sucessor e
+gravar seu hash, sem devolvê-la ao cliente. Não há replay idempotente sem a
+chave conhecida pelo cliente: uso posterior do predecessor com header ausente
+ou diferente segue a política de detecção de reutilização e revoga a família.
+Não se deriva uma chave previsível do refresh, pois isso permitiria que quem
+copiou o token repetisse a operação como se fosse o cliente legítimo.
 
 O novo refresh será gerado por HMAC-SHA-256 usando:
 
@@ -157,8 +165,8 @@ pessoais. Eventos usam apenas categorias finitas como `rotated`, `replayed`,
 
 - a sessão passa a manter histórico de gerações;
 - a derivação exige nova chave operacional e política de rotação por `kid`;
-- clientes precisam sempre gerar e preservar `Idempotency-Key` até concluir o
-  refresh;
+- clientes que precisam de retry seguro geram e preservam `Idempotency-Key`
+  até concluir o refresh; sem ela, perda da resposta pode exigir novo login;
 - múltiplas abas Web precisam coordenar reemissão de CSRF;
 - limpeza de gerações expiradas precisa respeitar a janela de detecção/replay.
 

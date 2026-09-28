@@ -56,7 +56,7 @@ class ReissueCsrfCommand(val refreshToken: String) {
 @NamedInterface("api")
 class RefreshSessionCommand(
     val refreshToken: String,
-    val idempotencyKey: String,
+    val idempotencyKey: String?,
     val csrfToken: String?,
     val origin: String?,
     val web: Boolean,

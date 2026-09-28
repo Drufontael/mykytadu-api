@@ -143,7 +143,8 @@ de versão ou exceção formal registrada.
 
 | Versão | Data | Estado | Mudança |
 |---|---|---|---|
-| `0.4.1` | 2026-09-28 | Atual | Formalizados `POST /auth/logout` e `POST /auth/logout-all`: ambos exigem Bearer; Web associa cookie/CSRF/Origin e limpa cookie; logout atual afeta somente a família pertencente ao principal autenticado; logout-all revoga sessões renováveis da conta |
+| `0.4.2` | 2026-09-28 | Atual | Restaurada a compatibilidade de `POST /auth/refresh` com `Idempotency-Key` opcional em `/api/v1`; sem header a rotação funciona, mas somente requisições com a mesma chave podem obter replay seguro após resposta de rede desconhecida |
+| `0.4.1` | 2026-09-28 | Anterior | Formalizados `POST /auth/logout` e `POST /auth/logout-all`: ambos exigem Bearer; Web associa cookie/CSRF/Origin e limpa cookie; logout atual afeta somente a família pertencente ao principal autenticado; logout-all revoga sessões renováveis da conta |
 | `0.4.0` | 2026-09-27 | Anterior | `Idempotency-Key` tornou-se obrigatório em `POST /auth/refresh` antes da ativação do endpoint, conforme ADR-019; clientes devem preservar a mesma chave durante retries da mesma rotação |
 | `0.3.1` | 2026-09-22 | Anterior | Declarados `Origin` opcional e resposta `403 csrf_invalid` no login Web, alinhando o contrato ao controle já aprovado no ADR-011 |
 | `0.3.0` | 2026-09-18 | Anterior | Adicionado `POST /auth/verify-email/resend`, erro `email_delivery_unavailable` e `clientId` opcional no login; ausência preserva o fluxo nativo legado, sem alterar requests existentes |

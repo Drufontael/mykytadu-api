@@ -79,7 +79,7 @@ class SessionControllerTest(
     }
 
     @Test
-    fun `returns native refresh in body and requires idempotency key`() {
+    fun `returns native refresh with or without idempotency key`() {
         mockMvc.post("/api/v1/auth/refresh") {
             contentType = MediaType.APPLICATION_JSON
             header("Idempotency-Key", "request-1")
@@ -89,12 +89,27 @@ class SessionControllerTest(
             header { doesNotExist(HttpHeaders.SET_COOKIE) }
             jsonPath("$.refreshToken") { value("next-refresh") }
         }
-        assertThat(sessions.refreshCommands.single().web).isFalse()
+        assertThat(sessions.refreshCommands.single().idempotencyKey).isEqualTo("request-1")
 
         mockMvc.post("/api/v1/auth/refresh") {
             contentType = MediaType.APPLICATION_JSON
             content = """{"refreshToken":"refresh-token"}"""
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.refreshToken") { value("next-refresh") }
+        }
+        assertThat(sessions.refreshCommands.last().idempotencyKey).isNull()
+        assertThat(sessions.refreshCommands).allMatch { !it.web }
+    }
+
+    @Test
+    fun `rejects blank idempotency key`() {
+        mockMvc.post("/api/v1/auth/refresh") {
+            contentType = MediaType.APPLICATION_JSON
+            header("Idempotency-Key", " ")
+            content = """{"refreshToken":"refresh-token"}"""
         }.andExpect { status { isBadRequest() } }
+        assertThat(sessions.refreshCommands).isEmpty()
     }
 
     @Test

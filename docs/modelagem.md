@@ -246,6 +246,9 @@ classDiagram
   de dois minutos do [ADR-019](adr/ADR-019-rotacao-idempotente-e-reemissao-de-csrf.md);
   banco e domínio guardam apenas o hash da chave e os metadados necessários
   para reproduzir a resposta, nunca os tokens em texto puro;
+- o header `Idempotency-Key` é opcional em `/api/v1`; sem ele, a primeira
+  rotação gera uma chave interna aleatória que não é devolvida, portanto um
+  predecessor consumido não pode ser repetido de modo idempotente;
 - reutilização de token consumido revoga toda a família;
 - usuário bloqueado ou excluído não renova sessão;
 - access token não é persistido.

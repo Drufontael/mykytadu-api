@@ -115,6 +115,35 @@ class LoginIntegrationTests(
     }
 
     @Test
+    fun `rotates without idempotency header and revokes family on predecessor reuse`() {
+        val initial = (login.login(command(AuthenticationClient.ANDROID)) as LoginOutcome.Created).session
+        val refreshCommand = RefreshSessionCommand(
+            refreshToken = requireNotNull(initial.refreshToken),
+            idempotencyKey = null,
+            csrfToken = null,
+            origin = null,
+            web = false,
+        )
+
+        val first = sessions.refresh(refreshCommand) as RefreshOutcome.Refreshed
+
+        assertThat(first.session.refreshToken).isNotBlank().isNotEqualTo(initial.refreshToken)
+        assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT rotation_idempotency_key_hash FROM identity.sessions WHERE revoke_reason = 'rotated'",
+                String::class.java,
+            ),
+        ).hasSize(64)
+        assertThat(sessions.refresh(refreshCommand)).isEqualTo(RefreshOutcome.SessionInvalid)
+        assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT revoke_reason FROM identity.sessions WHERE parent_session_id IS NOT NULL",
+                String::class.java,
+            ),
+        ).isEqualTo("reuse_detected")
+    }
+
+    @Test
     fun `reissues csrf and rotates the Web session with a fresh csrf`() {
         val initial = (
             login.login(command(AuthenticationClient.WEB, "http://localhost:8080")) as LoginOutcome.Created

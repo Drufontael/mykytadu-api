@@ -19,7 +19,6 @@ import br.com.mykytadu.identity.application.port.out.UserAccountRepository
 import br.com.mykytadu.identity.domain.model.Session
 import br.com.mykytadu.identity.domain.model.SessionId
 import br.com.mykytadu.identity.domain.model.SessionRotationReplay
-import br.com.mykytadu.identity.domain.model.TokenHash
 import br.com.mykytadu.identity.domain.model.UserAccount
 import org.springframework.context.annotation.Profile
 import org.springframework.stereotype.Service
@@ -72,7 +71,7 @@ internal class SessionService(
             client == null || command.web != client.web -> RefreshOutcome.SessionInvalid
 
             predecessor.revokeReason == Session.ROTATED_REASON ->
-                replay(predecessor, client, command, tokens.hash(command.idempotencyKey), now)
+                replay(predecessor, client, command, now)
 
             !predecessor.isActiveAt(now) -> RefreshOutcome.SessionInvalid
 
@@ -90,34 +89,35 @@ internal class SessionService(
     ): RefreshOutcome {
         val principal = accounts.findById(predecessor.userId)?.toPrincipal()
         val successorId = ids.nextSessionId()
+        val effectiveKey = command.idempotencyKey ?: tokens.generateToken()
         val refreshToken = refreshDeriver.derive(
             refreshDeriver.activeKeyId,
             predecessor.id,
             successorId,
-            command.idempotencyKey,
+            effectiveKey,
         )
         return if (principal == null || refreshToken == null) {
             RefreshOutcome.SessionInvalid
         } else {
-            rotateResolved(predecessor, client, command, now, principal, successorId, refreshToken)
+            rotateResolved(predecessor, client, now, principal, successorId, refreshToken, effectiveKey)
         }
     }
 
     private fun rotateResolved(
         predecessor: Session,
         client: AuthenticationClient,
-        command: RefreshSessionCommand,
         now: java.time.Instant,
         principal: AuthenticatedPrincipal,
         successorId: SessionId,
         refreshToken: String,
+        effectiveKey: String,
     ): RefreshOutcome {
         val csrfToken = tokens.generateToken().takeIf { client.web }
         val accessIssuedAt = now
         val accessExpiresAt = now.plus(properties.accessTokenTtl)
         val replay = SessionRotationReplay(
             successorSessionId = successorId,
-            idempotencyKeyHash = tokens.hash(command.idempotencyKey),
+            idempotencyKeyHash = tokens.hash(effectiveKey),
             derivationKeyId = refreshDeriver.activeKeyId,
             replayUntil = now.plus(properties.replayWindow),
             accessTokenId = ids.nextAccessTokenId(),
@@ -144,11 +144,13 @@ internal class SessionService(
         predecessor: Session,
         client: AuthenticationClient,
         command: RefreshSessionCommand,
-        idempotencyHash: TokenHash,
         now: java.time.Instant,
     ): RefreshOutcome = when {
         client.web && !validWebRequest(predecessor, command) -> RefreshOutcome.CsrfInvalid
-        !predecessor.isReplayAllowed(idempotencyHash, now) -> detectReuse(predecessor, now)
+
+        command.idempotencyKey == null ||
+            !predecessor.isReplayAllowed(tokens.hash(command.idempotencyKey), now) -> detectReuse(predecessor, now)
+
         else -> replayAllowed(predecessor, client, command)
     }
 
@@ -168,7 +170,7 @@ internal class SessionService(
             replay.derivationKeyId,
             predecessor.id,
             replay.successorSessionId,
-            command.idempotencyKey,
+            requireNotNull(command.idempotencyKey),
         )
         val successor = sessions.findById(replay.successorSessionId)
         val principal = accounts.findById(predecessor.userId)?.toPrincipal()

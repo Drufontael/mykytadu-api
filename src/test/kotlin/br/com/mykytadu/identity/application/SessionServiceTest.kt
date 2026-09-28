@@ -55,6 +55,22 @@ class SessionServiceTest {
     }
 
     @Test
+    fun `rotates without header but cannot replay a consumed refresh without the key`() {
+        val store = RecordingSessionStore(initialSession(AuthenticationClient.ANDROID, null))
+        val telemetry = RecordingTelemetry()
+        val service = service(store, telemetry)
+        val command = RefreshSessionCommand(RAW_REFRESH, null, null, null, false)
+
+        val first = service.refresh(command) as RefreshOutcome.Refreshed
+
+        assertThat(first.session.refreshToken).isEqualTo(DERIVED_REFRESH)
+        assertThat(store.sessions[PREDECESSOR_ID]?.rotationReplay?.idempotencyKeyHash).isEqualTo(HASHED_CSRF)
+        assertThat(service.refresh(command)).isEqualTo(RefreshOutcome.SessionInvalid)
+        assertThat(store.sessions[SUCCESSOR_ID]?.revokeReason).isEqualTo(Session.REUSE_DETECTED_REASON)
+        assertThat(telemetry.reuseDetections).isEqualTo(1)
+    }
+
+    @Test
     fun `reissues csrf and requires allowed origin and matching token for Web refresh`() {
         val store = RecordingSessionStore(initialSession(AuthenticationClient.WEB, HASHED_CSRF))
         val service = service(store)
@@ -279,7 +295,7 @@ class SessionServiceTest {
             idempotencyKey: String,
         ): String? = DERIVED_REFRESH.takeIf {
             keyId == activeKeyId && predecessorId == PREDECESSOR_ID && successorId == SUCCESSOR_ID &&
-                idempotencyKey == IDEMPOTENCY_KEY
+                idempotencyKey in setOf(IDEMPOTENCY_KEY, GENERATED_TOKEN)
         }
     }
 

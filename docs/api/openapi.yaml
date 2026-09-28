@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: MykytaDu API
-  version: 0.4.1
+  version: 0.4.2
   description: |
     Contrato HTTP inicial do MykytaDu API.
 
@@ -231,7 +231,11 @@ paths:
         omitido. Nos clientes nativos, o corpo contém o refresh token opaco
         lido do cofre seguro. A alternativa sem `refreshCookie` na seção de
         segurança representa exclusivamente esse corpo nativo. A resposta Web
-        não contém `refreshToken`.
+        não contém `refreshToken`. `Idempotency-Key` é opcional para manter a
+        compatibilidade de `/api/v1`; sem ela, a rotação funciona, mas uma
+        repetição do refresh consumido não pode ser reconhecida como retry e
+        revoga a família. Clientes devem reutilizar a mesma chave ao repetir
+        uma tentativa após resposta de rede desconhecida.
       security:
         - refreshCookie: []
         - {}
@@ -576,12 +580,12 @@ components:
     IdempotencyKey:
       name: Idempotency-Key
       in: header
-      required: true
+      required: false
       schema:
         type: string
         minLength: 1
         maxLength: 128
-      description: Chave obrigatória para repetição segura após resposta de rede desconhecida.
+      description: Chave opcional para repetição segura após resposta de rede desconhecida; quando usada, mantenha o mesmo valor em retries da mesma rotação.
 
   headers:
     RefreshCookie:
