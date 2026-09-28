@@ -123,8 +123,13 @@ class LoginServiceTest {
 
         override fun findById(sessionId: SessionId): Session? = session?.takeIf { it.id == sessionId }
 
-        override fun findByRefreshTokenHashForUpdate(refreshTokenHash: TokenHash): Session? =
+        override fun findByRefreshTokenHash(refreshTokenHash: TokenHash): Session? =
             session?.takeIf { it.refreshTokenHash == refreshTokenHash }
+
+        override fun findFamilyForUpdate(tokenFamilyId: TokenFamilyId): List<Session> =
+            listOfNotNull(session?.takeIf { it.tokenFamilyId == tokenFamilyId })
+
+        override fun revokeRenewableFamily(tokenFamilyId: TokenFamilyId, revokedAt: Instant): Int = 0
     }
 
     private class FixedSessionTokens : SessionTokenCryptography {

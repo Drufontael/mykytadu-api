@@ -17,12 +17,17 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.ActiveProfiles
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.postgresql.PostgreSQLContainer
 import java.sql.Timestamp
 import java.time.Instant
 import java.util.UUID
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 @Testcontainers
 @SpringBootTest
@@ -30,6 +35,7 @@ import java.util.UUID
 class SessionStoreIntegrationTests(
     @Autowired private val sessions: SessionStore,
     @Autowired private val jdbcTemplate: JdbcTemplate,
+    @Autowired private val transactionManager: PlatformTransactionManager,
 ) {
 
     @BeforeEach
@@ -75,12 +81,14 @@ class SessionStoreIntegrationTests(
         sessions.create(successor)
         sessions.update(predecessor.markRotated(ROTATED_AT, replay))
 
-        val restoredPredecessor = sessions.findByRefreshTokenHashForUpdate(PREDECESSOR_HASH)
+        val restoredPredecessor = sessions.findByRefreshTokenHash(PREDECESSOR_HASH)
         val restoredSuccessor = sessions.findById(SUCCESSOR_ID)
+        val lockedFamily = sessions.findFamilyForUpdate(FAMILY_ID)
         assertThat(restoredPredecessor?.rotationReplay).isEqualTo(replay)
         assertThat(restoredPredecessor?.revokeReason).isEqualTo(Session.ROTATED_REASON)
         assertThat(restoredSuccessor?.parentSessionId).isEqualTo(PREDECESSOR_ID)
         assertThat(restoredSuccessor?.tokenFamilyId).isEqualTo(FAMILY_ID)
+        assertThat(lockedFamily.map { it.id }).containsExactly(PREDECESSOR_ID, SUCCESSOR_ID)
     }
 
     @Test
@@ -98,6 +106,68 @@ class SessionStoreIntegrationTests(
                 PREDECESSOR_ID.value,
             )
         }.isInstanceOf(DataIntegrityViolationException::class.java)
+    }
+
+    @Test
+    fun `revokes every renewable generation in a family atomically`() {
+        val predecessor = initialSession()
+        val successor = Session.successor(
+            id = SUCCESSOR_ID,
+            predecessorId = predecessor.id,
+            userId = predecessor.userId,
+            refreshTokenHash = SUCCESSOR_HASH,
+            tokenFamilyId = predecessor.tokenFamilyId,
+            clientId = predecessor.clientId,
+            csrfTokenHash = null,
+            createdAt = ROTATED_AT,
+            expiresAt = NOW.plusSeconds(7_200),
+        )
+        sessions.create(predecessor)
+        sessions.create(successor)
+
+        val affected = sessions.revokeRenewableFamily(FAMILY_ID, ROTATED_AT)
+
+        assertThat(affected).isEqualTo(2)
+        assertThat(sessions.findById(PREDECESSOR_ID)?.revokeReason).isEqualTo(Session.REUSE_DETECTED_REASON)
+        assertThat(sessions.findById(SUCCESSOR_ID)?.revokeReason).isEqualTo(Session.REUSE_DETECTED_REASON)
+    }
+
+    @Test
+    fun `family lock makes a concurrent operation observe reuse revocation`() {
+        sessions.create(initialSession())
+        val executor = Executors.newFixedThreadPool(2)
+        val transaction = TransactionTemplate(transactionManager)
+        val firstLocked = CountDownLatch(1)
+        val releaseFirst = CountDownLatch(1)
+
+        try {
+            val revoker = executor.submit {
+                transaction.executeWithoutResult {
+                    val session = sessions.findFamilyForUpdate(FAMILY_ID).single()
+                    firstLocked.countDown()
+                    check(releaseFirst.await(10, TimeUnit.SECONDS))
+                    sessions.update(session.revoke(ROTATED_AT, Session.REUSE_DETECTED_REASON))
+                }
+            }
+            assertThat(firstLocked.await(10, TimeUnit.SECONDS)).isTrue
+
+            val secondStarted = CountDownLatch(1)
+            val contender = executor.submit<List<Session>> {
+                transaction.execute {
+                    secondStarted.countDown()
+                    sessions.findFamilyForUpdate(FAMILY_ID)
+                }.orEmpty()
+            }
+            assertThat(secondStarted.await(10, TimeUnit.SECONDS)).isTrue
+            releaseFirst.countDown()
+
+            revoker.get(10, TimeUnit.SECONDS)
+            val observed = contender.get(10, TimeUnit.SECONDS).single()
+            assertThat(observed.revokeReason).isEqualTo(Session.REUSE_DETECTED_REASON)
+        } finally {
+            releaseFirst.countDown()
+            executor.shutdownNow()
+        }
     }
 
     private fun initialSession(): Session = Session.initial(

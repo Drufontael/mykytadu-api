@@ -61,6 +61,25 @@ class Session private constructor(
         )
     }
 
+    fun revoke(at: Instant, reason: String): Session {
+        require(reason.isNotBlank() && reason != ROTATED_REASON) { "A non-rotation reason is required" }
+        check(isActiveAt(at)) { "Only an active session can be revoked" }
+        return Session(
+            id,
+            userId,
+            refreshTokenHash,
+            tokenFamilyId,
+            clientId,
+            csrfTokenHash,
+            expiresAt,
+            at,
+            reason,
+            createdAt,
+            parentSessionId,
+            null,
+        )
+    }
+
     fun isActiveAt(instant: Instant): Boolean =
         revokedAt == null && !instant.isBefore(createdAt) && instant.isBefore(expiresAt)
 
@@ -167,6 +186,7 @@ class Session private constructor(
         )
 
         const val ROTATED_REASON = "rotated"
+        const val REUSE_DETECTED_REASON = "reuse_detected"
     }
 }
 

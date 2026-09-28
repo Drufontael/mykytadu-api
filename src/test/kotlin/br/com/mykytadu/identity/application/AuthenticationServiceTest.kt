@@ -202,6 +202,8 @@ class AuthenticationServiceTest {
         override fun rateLimited() {
             results += "rate_limited"
         }
+
+        override fun refreshReuseDetected() = Unit
     }
 
     companion object {

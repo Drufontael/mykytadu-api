@@ -6,6 +6,7 @@ import br.com.mykytadu.identity.api.RefreshOutcome
 import br.com.mykytadu.identity.api.RefreshSessionCommand
 import br.com.mykytadu.identity.api.ReissueCsrfCommand
 import br.com.mykytadu.identity.application.port.out.AccessTokenIssuer
+import br.com.mykytadu.identity.application.port.out.AuthenticationTelemetry
 import br.com.mykytadu.identity.application.port.out.RefreshTokenDeriver
 import br.com.mykytadu.identity.application.port.out.SessionIdGenerator
 import br.com.mykytadu.identity.application.port.out.SessionStore
@@ -66,21 +67,61 @@ class SessionServiceTest {
         assertThat(refreshed.session.csrfToken).isEqualTo(GENERATED_TOKEN)
     }
 
-    private fun service(store: RecordingSessionStore) = SessionService(
-        sessions = store,
-        accounts = FixedAccountRepository(account()),
-        ids = FixedIds(),
-        tokens = FixedTokens(),
-        refreshDeriver = FixedRefreshDeriver(),
-        accessTokens = FixedAccessTokens(),
-        originPolicy = { it == ALLOWED_ORIGIN },
-        clock = Clock.fixed(NOW, ZoneOffset.UTC),
-        properties = SessionApplicationProperties(
-            accessTokenTtl = Duration.ofMinutes(10),
-            refreshTokenTtl = Duration.ofDays(30),
-            replayWindow = Duration.ofMinutes(2),
-        ),
-    )
+    @Test
+    fun `revokes renewable family and records safe telemetry when a consumed refresh is reused`() {
+        val store = RecordingSessionStore(initialSession(AuthenticationClient.ANDROID, null))
+        val telemetry = RecordingTelemetry()
+        val service = service(store, telemetry)
+        service.refresh(refreshCommand(web = false, csrfToken = null, origin = null))
+
+        val command = RefreshSessionCommand(
+            refreshToken = RAW_REFRESH,
+            idempotencyKey = "other-key",
+            csrfToken = null,
+            origin = null,
+            web = false,
+        )
+        assertThat(service.refresh(command)).isEqualTo(RefreshOutcome.SessionInvalid)
+        assertThat(store.sessions[SUCCESSOR_ID]?.revokeReason).isEqualTo(Session.REUSE_DETECTED_REASON)
+        assertThat(telemetry.reuseDetections).isEqualTo(1)
+    }
+
+    @Test
+    fun `does not revoke a Web family when replay request fails csrf validation`() {
+        val store = RecordingSessionStore(initialSession(AuthenticationClient.WEB, HASHED_CSRF))
+        val telemetry = RecordingTelemetry()
+        val service = service(store, telemetry)
+        service.refresh(refreshCommand(web = true, csrfToken = GENERATED_TOKEN, origin = ALLOWED_ORIGIN))
+
+        val invalidCsrf = RefreshSessionCommand(
+            refreshToken = RAW_REFRESH,
+            idempotencyKey = "other-key",
+            csrfToken = "invalid-csrf",
+            origin = ALLOWED_ORIGIN,
+            web = true,
+        )
+        assertThat(service.refresh(invalidCsrf)).isEqualTo(RefreshOutcome.CsrfInvalid)
+        assertThat(store.sessions[SUCCESSOR_ID]?.revokedAt).isNull()
+        assertThat(telemetry.reuseDetections).isZero()
+    }
+
+    private fun service(store: RecordingSessionStore, telemetry: RecordingTelemetry = RecordingTelemetry()) =
+        SessionService(
+            sessions = store,
+            accounts = FixedAccountRepository(account()),
+            telemetry = telemetry,
+            ids = FixedIds(),
+            tokens = FixedTokens(),
+            refreshDeriver = FixedRefreshDeriver(),
+            accessTokens = FixedAccessTokens(),
+            originPolicy = { it == ALLOWED_ORIGIN },
+            clock = Clock.fixed(NOW, ZoneOffset.UTC),
+            properties = SessionApplicationProperties(
+                accessTokenTtl = Duration.ofMinutes(10),
+                refreshTokenTtl = Duration.ofDays(30),
+                replayWindow = Duration.ofMinutes(2),
+            ),
+        )
 
     private fun refreshCommand(web: Boolean, csrfToken: String?, origin: String?) = RefreshSessionCommand(
         refreshToken = RAW_REFRESH,
@@ -130,8 +171,30 @@ class SessionServiceTest {
 
         override fun findById(sessionId: SessionId): Session? = sessions[sessionId]
 
-        override fun findByRefreshTokenHashForUpdate(refreshTokenHash: TokenHash): Session? =
+        override fun findByRefreshTokenHash(refreshTokenHash: TokenHash): Session? =
             sessions.values.firstOrNull { it.refreshTokenHash == refreshTokenHash }
+
+        override fun findFamilyForUpdate(tokenFamilyId: TokenFamilyId): List<Session> =
+            sessions.values.filter { it.tokenFamilyId == tokenFamilyId }.sortedBy { it.id.value }
+
+        override fun revokeRenewableFamily(tokenFamilyId: TokenFamilyId, revokedAt: Instant): Int {
+            val renewable = sessions.values.filter {
+                it.tokenFamilyId == tokenFamilyId && it.isActiveAt(revokedAt)
+            }
+            renewable.forEach { sessions[it.id] = it.revoke(revokedAt, Session.REUSE_DETECTED_REASON) }
+            return renewable.size
+        }
+    }
+
+    private class RecordingTelemetry : AuthenticationTelemetry {
+        var reuseDetections = 0
+        override fun accepted() = Unit
+        override fun invalidCredentials() = Unit
+        override fun emailVerificationRequired() = Unit
+        override fun rateLimited() = Unit
+        override fun refreshReuseDetected() {
+            reuseDetections++
+        }
     }
 
     private class FixedAccountRepository(private val account: UserAccount) : UserAccountRepository {

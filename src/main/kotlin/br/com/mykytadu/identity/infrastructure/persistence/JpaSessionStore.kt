@@ -11,17 +11,31 @@ import jakarta.persistence.LockModeType
 import org.springframework.context.annotation.Profile
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Lock
+import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
+import java.time.Instant
 import java.util.UUID
 
 internal interface SpringDataSessionRepository : JpaRepository<SessionEntity, UUID> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select session from SessionEntity session where session.tokenFamilyId = :familyId order by session.id")
+    fun findFamilyForUpdate(@Param("familyId") familyId: UUID): List<SessionEntity>
+
     @Query("select session from SessionEntity session where session.refreshTokenHash = :refreshTokenHash")
-    fun findByRefreshTokenHashForUpdate(@Param("refreshTokenHash") refreshTokenHash: String): SessionEntity?
+    fun findByRefreshTokenHash(@Param("refreshTokenHash") refreshTokenHash: String): SessionEntity?
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        "update SessionEntity session set session.revokedAt = :revokedAt, " +
+            "session.revokeReason = 'reuse_detected' " +
+            "where session.tokenFamilyId = :familyId and session.revokedAt is null " +
+            "and session.expiresAt > :revokedAt",
+    )
+    fun revokeRenewableFamily(@Param("familyId") familyId: UUID, @Param("revokedAt") revokedAt: Instant): Int
 }
 
 @Repository
@@ -43,8 +57,16 @@ internal class JpaSessionStore(private val sessions: SpringDataSessionRepository
     override fun findById(sessionId: SessionId): Session? = sessions.findById(sessionId.value).orElse(null)?.toDomain()
 
     @Transactional
-    override fun findByRefreshTokenHashForUpdate(refreshTokenHash: TokenHash): Session? =
-        sessions.findByRefreshTokenHashForUpdate(refreshTokenHash.persistenceValue())?.toDomain()
+    override fun findByRefreshTokenHash(refreshTokenHash: TokenHash): Session? =
+        sessions.findByRefreshTokenHash(refreshTokenHash.persistenceValue())?.toDomain()
+
+    @Transactional
+    override fun findFamilyForUpdate(tokenFamilyId: TokenFamilyId): List<Session> =
+        sessions.findFamilyForUpdate(tokenFamilyId.value).map { it.toDomain() }
+
+    @Transactional
+    override fun revokeRenewableFamily(tokenFamilyId: TokenFamilyId, revokedAt: Instant): Int =
+        sessions.revokeRenewableFamily(tokenFamilyId.value, revokedAt)
 
     private fun Session.toEntity(): SessionEntity = SessionEntity(
         id = id.value,

@@ -10,7 +10,9 @@ interface SessionStore {
     fun create(session: Session)
     fun update(session: Session)
     fun findById(sessionId: SessionId): Session?
-    fun findByRefreshTokenHashForUpdate(refreshTokenHash: TokenHash): Session?
+    fun findByRefreshTokenHash(refreshTokenHash: TokenHash): Session?
+    fun findFamilyForUpdate(tokenFamilyId: TokenFamilyId): List<Session>
+    fun revokeRenewableFamily(tokenFamilyId: TokenFamilyId, revokedAt: java.time.Instant): Int
 }
 
 interface SessionIdGenerator {

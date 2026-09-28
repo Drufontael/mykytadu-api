@@ -15,6 +15,7 @@ class MicrometerAuthenticationTelemetryTest {
         telemetry.invalidCredentials()
         telemetry.emailVerificationRequired()
         telemetry.rateLimited()
+        telemetry.refreshReuseDetected()
 
         val meters = registry.find("mykytadu.identity.authentication.attempts").counters()
         assertThat(meters.map { it.id.getTag("result") })
@@ -23,6 +24,7 @@ class MicrometerAuthenticationTelemetryTest {
                 "invalid_credentials",
                 "email_verification_required",
                 "rate_limited",
+                "refresh_reuse_detected",
             )
         assertThat(meters).allMatch { it.count() == 1.0 }
         assertThat(meters.flatMap { it.id.tags }.map { it.value })

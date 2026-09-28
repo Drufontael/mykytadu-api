@@ -9,4 +9,6 @@ interface AuthenticationTelemetry {
     fun emailVerificationRequired()
 
     fun rateLimited()
+
+    fun refreshReuseDetected()
 }

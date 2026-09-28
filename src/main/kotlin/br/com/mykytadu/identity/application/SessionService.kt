@@ -9,6 +9,7 @@ import br.com.mykytadu.identity.api.RefreshSessionCommand
 import br.com.mykytadu.identity.api.RefreshedSession
 import br.com.mykytadu.identity.api.ReissueCsrfCommand
 import br.com.mykytadu.identity.application.port.out.AccessTokenIssuer
+import br.com.mykytadu.identity.application.port.out.AuthenticationTelemetry
 import br.com.mykytadu.identity.application.port.out.LoginOriginPolicy
 import br.com.mykytadu.identity.application.port.out.RefreshTokenDeriver
 import br.com.mykytadu.identity.application.port.out.SessionIdGenerator
@@ -31,6 +32,7 @@ import java.time.Duration
 internal class SessionService(
     private val sessions: SessionStore,
     private val accounts: UserAccountRepository,
+    private val telemetry: AuthenticationTelemetry,
     private val ids: SessionIdGenerator,
     private val tokens: SessionTokenCryptography,
     private val refreshDeriver: RefreshTokenDeriver,
@@ -43,7 +45,7 @@ internal class SessionService(
     @Transactional
     override fun reissueCsrf(command: ReissueCsrfCommand): CsrfOutcome {
         val now = clock.instant()
-        val session = sessions.findByRefreshTokenHashForUpdate(tokens.hash(command.refreshToken))
+        val session = sessions.findSessionFamilyLocked(command.refreshToken, tokens)
         return if (session == null || !session.isActiveAt(now) || session.clientId != Session.WEB_CLIENT_ID) {
             CsrfOutcome.SessionInvalid
         } else {
@@ -56,7 +58,7 @@ internal class SessionService(
     @Transactional
     override fun refresh(command: RefreshSessionCommand): RefreshOutcome {
         val now = clock.instant()
-        val predecessor = sessions.findByRefreshTokenHashForUpdate(tokens.hash(command.refreshToken))
+        val predecessor = sessions.findSessionFamilyLocked(command.refreshToken, tokens)
         return predecessor?.let { refreshKnown(it, command, now) } ?: RefreshOutcome.SessionInvalid
     }
 
@@ -145,9 +147,15 @@ internal class SessionService(
         idempotencyHash: TokenHash,
         now: java.time.Instant,
     ): RefreshOutcome = when {
-        !predecessor.isReplayAllowed(idempotencyHash, now) -> RefreshOutcome.SessionInvalid
         client.web && !validWebRequest(predecessor, command) -> RefreshOutcome.CsrfInvalid
+        !predecessor.isReplayAllowed(idempotencyHash, now) -> detectReuse(predecessor, now)
         else -> replayAllowed(predecessor, client, command)
+    }
+
+    private fun detectReuse(predecessor: Session, now: java.time.Instant): RefreshOutcome {
+        sessions.revokeRenewableFamily(predecessor.tokenFamilyId, now)
+        telemetry.refreshReuseDetected()
+        return RefreshOutcome.SessionInvalid
     }
 
     private fun replayAllowed(
@@ -217,3 +225,8 @@ data class SessionApplicationProperties(
     val refreshTokenTtl: Duration,
     val replayWindow: Duration,
 )
+
+private fun SessionStore.findSessionFamilyLocked(refreshToken: String, tokens: SessionTokenCryptography): Session? {
+    val candidate = findByRefreshTokenHash(tokens.hash(refreshToken)) ?: return null
+    return findFamilyForUpdate(candidate.tokenFamilyId).firstOrNull { it.id == candidate.id }
+}
