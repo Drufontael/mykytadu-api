@@ -45,7 +45,7 @@ internal class SessionService(
     @Transactional
     override fun reissueCsrf(command: ReissueCsrfCommand): CsrfOutcome {
         val now = clock.instant()
-        val session = sessions.findSessionFamilyLocked(command.refreshToken, tokens)
+        val session = sessions.findSessionFamilyLocked(command.refreshToken, tokens, accounts)
         return if (session == null || !session.isActiveAt(now) || session.clientId != Session.WEB_CLIENT_ID) {
             CsrfOutcome.SessionInvalid
         } else {
@@ -58,7 +58,7 @@ internal class SessionService(
     @Transactional
     override fun refresh(command: RefreshSessionCommand): RefreshOutcome {
         val now = clock.instant()
-        val predecessor = sessions.findSessionFamilyLocked(command.refreshToken, tokens)
+        val predecessor = sessions.findSessionFamilyLocked(command.refreshToken, tokens, accounts)
         return predecessor?.let { refreshKnown(it, command, now) } ?: RefreshOutcome.SessionInvalid
     }
 
@@ -225,8 +225,3 @@ data class SessionApplicationProperties(
     val refreshTokenTtl: Duration,
     val replayWindow: Duration,
 )
-
-private fun SessionStore.findSessionFamilyLocked(refreshToken: String, tokens: SessionTokenCryptography): Session? {
-    val candidate = findByRefreshTokenHash(tokens.hash(refreshToken)) ?: return null
-    return findFamilyForUpdate(candidate.tokenFamilyId).firstOrNull { it.id == candidate.id }
-}

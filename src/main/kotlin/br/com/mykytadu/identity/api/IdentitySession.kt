@@ -1,11 +1,51 @@
 package br.com.mykytadu.identity.api
 
 import org.springframework.modulith.NamedInterface
+import java.util.UUID
 
 @NamedInterface("api")
 interface IdentitySession {
     fun reissueCsrf(command: ReissueCsrfCommand): CsrfOutcome
     fun refresh(command: RefreshSessionCommand): RefreshOutcome
+}
+
+@NamedInterface("api")
+interface IdentityLogout {
+    fun logout(command: LogoutSessionCommand): LogoutOutcome
+    fun logoutAll(command: LogoutAllSessionsCommand): LogoutOutcome
+}
+
+@NamedInterface("api")
+class LogoutSessionCommand(
+    val userId: UUID,
+    val refreshToken: String,
+    val csrfToken: String?,
+    val origin: String?,
+    val web: Boolean,
+) {
+    override fun toString(): String =
+        "LogoutSessionCommand(userId=[REDACTED], refreshToken=[REDACTED], csrfToken=[REDACTED], origin=[REDACTED])"
+}
+
+@NamedInterface("api")
+class LogoutAllSessionsCommand(
+    val userId: UUID,
+    val currentRefreshToken: String?,
+    val csrfToken: String?,
+    val origin: String?,
+    val web: Boolean,
+) {
+    override fun toString(): String = "LogoutAllSessionsCommand(userId=[REDACTED], currentRefreshToken=[REDACTED], " +
+        "csrfToken=[REDACTED], origin=[REDACTED])"
+}
+
+@NamedInterface("api")
+sealed interface LogoutOutcome {
+    @NamedInterface("api")
+    data object Completed : LogoutOutcome
+
+    @NamedInterface("api")
+    data object CsrfInvalid : LogoutOutcome
 }
 
 @NamedInterface("api")

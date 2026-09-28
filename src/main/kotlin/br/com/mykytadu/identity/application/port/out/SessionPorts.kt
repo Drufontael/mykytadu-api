@@ -4,6 +4,7 @@ import br.com.mykytadu.identity.domain.model.Session
 import br.com.mykytadu.identity.domain.model.SessionId
 import br.com.mykytadu.identity.domain.model.TokenFamilyId
 import br.com.mykytadu.identity.domain.model.TokenHash
+import br.com.mykytadu.identity.domain.model.UserId
 import java.util.UUID
 
 interface SessionStore {
@@ -13,6 +14,8 @@ interface SessionStore {
     fun findByRefreshTokenHash(refreshTokenHash: TokenHash): Session?
     fun findFamilyForUpdate(tokenFamilyId: TokenFamilyId): List<Session>
     fun revokeRenewableFamily(tokenFamilyId: TokenFamilyId, revokedAt: java.time.Instant): Int
+    fun revokeFamilyForLogout(tokenFamilyId: TokenFamilyId, revokedAt: java.time.Instant): Int
+    fun revokeAllForUser(userId: UserId, revokedAt: java.time.Instant): Int
 }
 
 interface SessionIdGenerator {

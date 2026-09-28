@@ -36,6 +36,24 @@ internal interface SpringDataSessionRepository : JpaRepository<SessionEntity, UU
             "and session.expiresAt > :revokedAt",
     )
     fun revokeRenewableFamily(@Param("familyId") familyId: UUID, @Param("revokedAt") revokedAt: Instant): Int
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        "update SessionEntity session set session.revokedAt = :revokedAt, " +
+            "session.revokeReason = 'logout' " +
+            "where session.tokenFamilyId = :familyId and session.revokedAt is null " +
+            "and session.expiresAt > :revokedAt",
+    )
+    fun revokeFamilyForLogout(@Param("familyId") familyId: UUID, @Param("revokedAt") revokedAt: Instant): Int
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        "update SessionEntity session set session.revokedAt = :revokedAt, " +
+            "session.revokeReason = 'logout_all' " +
+            "where session.userId = :userId and session.revokedAt is null " +
+            "and session.expiresAt > :revokedAt",
+    )
+    fun revokeAllForUser(@Param("userId") userId: UUID, @Param("revokedAt") revokedAt: Instant): Int
 }
 
 @Repository
@@ -67,6 +85,14 @@ internal class JpaSessionStore(private val sessions: SpringDataSessionRepository
     @Transactional
     override fun revokeRenewableFamily(tokenFamilyId: TokenFamilyId, revokedAt: Instant): Int =
         sessions.revokeRenewableFamily(tokenFamilyId.value, revokedAt)
+
+    @Transactional
+    override fun revokeFamilyForLogout(tokenFamilyId: TokenFamilyId, revokedAt: Instant): Int =
+        sessions.revokeFamilyForLogout(tokenFamilyId.value, revokedAt)
+
+    @Transactional
+    override fun revokeAllForUser(userId: UserId, revokedAt: Instant): Int =
+        sessions.revokeAllForUser(userId.value, revokedAt)
 
     private fun Session.toEntity(): SessionEntity = SessionEntity(
         id = id.value,

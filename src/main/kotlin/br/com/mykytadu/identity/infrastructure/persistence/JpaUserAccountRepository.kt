@@ -19,6 +19,8 @@ internal class JpaUserAccountRepository(private val delegate: SpringDataUserAcco
 
     override fun findById(userId: UserId): UserAccount? = delegate.findById(userId.value).orElse(null)?.toDomain()
 
+    override fun findByIdForUpdate(userId: UserId): UserAccount? = delegate.findByIdForUpdate(userId.value)?.toDomain()
+
     private fun UserAccount.toEntity(): UserAccountEntity = UserAccountPersistenceMapper.toEntity(this)
 
     private fun UserAccountEntity.toDomain(): UserAccount = UserAccountPersistenceMapper.toDomain(this)

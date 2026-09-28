@@ -167,6 +167,8 @@ class AuthenticationServiceTest {
         }
 
         override fun findById(userId: UserId): UserAccount? = account?.takeIf { it.user.id == userId }
+
+        override fun findByIdForUpdate(userId: UserId): UserAccount? = account?.takeIf { it.user.id == userId }
     }
 
     private class RecordingPasswordVerifier(private val matches: Boolean = true) : PasswordVerifier {

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: MykytaDu API
-  version: 0.4.0
+  version: 0.4.1
   description: |
     Contrato HTTP inicial do MykytaDu API.
 
@@ -290,8 +290,12 @@ paths:
         Revoga a sessão atual. O Web usa o cookie de refresh, o access token
         Bearer e o synchronizer token; clientes nativos enviam o refresh token
         opaco no corpo e o access token como Bearer. A operação é idempotente
-        para uma sessão já encerrada.
+        para uma sessão já encerrada e só revoga a família pertencente ao
+        principal autenticado. Respostas para sessão ausente ou pertencente a
+        outra conta também são uniformes.
       security:
+        - bearerAuth: []
+          refreshCookie: []
         - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/CsrfToken'
@@ -323,8 +327,13 @@ paths:
       tags: [Identity]
       operationId: logoutAll
       summary: Encerrar todas as sessões
-      description: Revoga todas as sessões da conta autenticada.
+      description: |
+        Revoga todas as sessões renováveis da conta autenticada. Clientes Web
+        enviam o cookie de refresh corrente, `Origin` e synchronizer token
+        junto do access token Bearer; clientes nativos usam somente Bearer.
       security:
+        - bearerAuth: []
+          refreshCookie: []
         - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/CsrfToken'
@@ -555,7 +564,7 @@ components:
         type: string
         minLength: 1
         maxLength: 512
-      description: Obrigatório para o fluxo Web em refresh e logout; mantido somente em memória.
+      description: Obrigatório para o fluxo Web em refresh, logout e logout-all; mantido somente em memória.
     Origin:
       name: Origin
       in: header

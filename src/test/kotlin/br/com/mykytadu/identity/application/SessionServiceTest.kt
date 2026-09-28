@@ -2,6 +2,9 @@ package br.com.mykytadu.identity.application
 
 import br.com.mykytadu.identity.api.AuthenticationClient
 import br.com.mykytadu.identity.api.CsrfOutcome
+import br.com.mykytadu.identity.api.LogoutAllSessionsCommand
+import br.com.mykytadu.identity.api.LogoutOutcome
+import br.com.mykytadu.identity.api.LogoutSessionCommand
 import br.com.mykytadu.identity.api.RefreshOutcome
 import br.com.mykytadu.identity.api.RefreshSessionCommand
 import br.com.mykytadu.identity.api.ReissueCsrfCommand
@@ -105,6 +108,28 @@ class SessionServiceTest {
         assertThat(telemetry.reuseDetections).isZero()
     }
 
+    @Test
+    fun `logout is idempotent and cannot revoke another account session`() {
+        val store = RecordingSessionStore(initialSession(AuthenticationClient.ANDROID, null))
+        val service = logoutService(store)
+
+        assertThat(service.logout(logoutCommand(USER_ID.value))).isEqualTo(LogoutOutcome.Completed)
+        assertThat(store.sessions[PREDECESSOR_ID]?.revokeReason).isEqualTo(Session.LOGOUT_REASON)
+        assertThat(service.logout(logoutCommand(UUID.fromString("019937b6-3600-7001-8000-000000000099"))))
+            .isEqualTo(LogoutOutcome.Completed)
+        assertThat(store.sessions[PREDECESSOR_ID]?.revokeReason).isEqualTo(Session.LOGOUT_REASON)
+    }
+
+    @Test
+    fun `logout all revokes renewable sessions for the authenticated account`() {
+        val store = RecordingSessionStore(initialSession(AuthenticationClient.ANDROID, null))
+        val service = logoutService(store)
+        val command = LogoutAllSessionsCommand(USER_ID.value, null, null, null, false)
+
+        assertThat(service.logoutAll(command)).isEqualTo(LogoutOutcome.Completed)
+        assertThat(store.sessions[PREDECESSOR_ID]?.revokeReason).isEqualTo(Session.LOGOUT_ALL_REASON)
+    }
+
     private fun service(store: RecordingSessionStore, telemetry: RecordingTelemetry = RecordingTelemetry()) =
         SessionService(
             sessions = store,
@@ -123,12 +148,28 @@ class SessionServiceTest {
             ),
         )
 
+    private fun logoutService(store: RecordingSessionStore) = SessionLogoutService(
+        sessions = store,
+        accounts = FixedAccountRepository(account()),
+        tokens = FixedTokens(),
+        originPolicy = { it == ALLOWED_ORIGIN },
+        clock = Clock.fixed(NOW, ZoneOffset.UTC),
+    )
+
     private fun refreshCommand(web: Boolean, csrfToken: String?, origin: String?) = RefreshSessionCommand(
         refreshToken = RAW_REFRESH,
         idempotencyKey = IDEMPOTENCY_KEY,
         csrfToken = csrfToken,
         origin = origin,
         web = web,
+    )
+
+    private fun logoutCommand(userId: UUID) = LogoutSessionCommand(
+        userId = userId,
+        refreshToken = RAW_REFRESH,
+        csrfToken = null,
+        origin = null,
+        web = false,
     )
 
     private fun initialSession(client: AuthenticationClient, csrfHash: TokenHash?) = Session.initial(
@@ -184,6 +225,18 @@ class SessionServiceTest {
             renewable.forEach { sessions[it.id] = it.revoke(revokedAt, Session.REUSE_DETECTED_REASON) }
             return renewable.size
         }
+
+        override fun revokeFamilyForLogout(tokenFamilyId: TokenFamilyId, revokedAt: Instant): Int {
+            val active = sessions.values.filter { it.tokenFamilyId == tokenFamilyId && it.isActiveAt(revokedAt) }
+            active.forEach { sessions[it.id] = it.revoke(revokedAt, Session.LOGOUT_REASON) }
+            return active.size
+        }
+
+        override fun revokeAllForUser(userId: UserId, revokedAt: Instant): Int {
+            val active = sessions.values.filter { it.userId == userId && it.isActiveAt(revokedAt) }
+            active.forEach { sessions[it.id] = it.revoke(revokedAt, Session.LOGOUT_ALL_REASON) }
+            return active.size
+        }
     }
 
     private class RecordingTelemetry : AuthenticationTelemetry {
@@ -201,6 +254,8 @@ class SessionServiceTest {
         override fun save(account: UserAccount): UserAccount = account
         override fun findByEmail(email: Email): UserAccount? = account
         override fun findById(userId: UserId): UserAccount? = account.takeIf { it.user.id == userId }
+
+        override fun findByIdForUpdate(userId: UserId): UserAccount? = account.takeIf { it.user.id == userId }
     }
 
     private class FixedTokens : SessionTokenCryptography {

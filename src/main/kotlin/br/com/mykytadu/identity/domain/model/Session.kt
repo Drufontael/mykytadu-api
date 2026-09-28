@@ -187,6 +187,8 @@ class Session private constructor(
 
         const val ROTATED_REASON = "rotated"
         const val REUSE_DETECTED_REASON = "reuse_detected"
+        const val LOGOUT_REASON = "logout"
+        const val LOGOUT_ALL_REASON = "logout_all"
     }
 }
 

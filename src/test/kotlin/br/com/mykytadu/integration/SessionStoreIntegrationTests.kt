@@ -170,6 +170,52 @@ class SessionStoreIntegrationTests(
         }
     }
 
+    @Test
+    fun `logout all revokes renewable sessions from every family of the user`() {
+        val first = initialSession()
+        val second = Session.initial(
+            id = SECOND_SESSION_ID,
+            userId = USER_ID,
+            refreshTokenHash = SECOND_SESSION_HASH,
+            tokenFamilyId = SECOND_FAMILY_ID,
+            clientId = "mykytadu-ios",
+            csrfTokenHash = null,
+            createdAt = NOW,
+            expiresAt = NOW.plusSeconds(3_600),
+        )
+        sessions.create(first)
+        sessions.create(second)
+
+        val affected = sessions.revokeAllForUser(USER_ID, ROTATED_AT)
+
+        assertThat(affected).isEqualTo(2)
+        assertThat(sessions.findById(PREDECESSOR_ID)?.revokeReason).isEqualTo(Session.LOGOUT_ALL_REASON)
+        assertThat(sessions.findById(SECOND_SESSION_ID)?.revokeReason).isEqualTo(Session.LOGOUT_ALL_REASON)
+    }
+
+    @Test
+    fun `logout revokes renewable generations only in the presented family`() {
+        val first = initialSession()
+        val otherFamily = Session.initial(
+            id = SECOND_SESSION_ID,
+            userId = USER_ID,
+            refreshTokenHash = SECOND_SESSION_HASH,
+            tokenFamilyId = SECOND_FAMILY_ID,
+            clientId = "mykytadu-ios",
+            csrfTokenHash = null,
+            createdAt = NOW,
+            expiresAt = NOW.plusSeconds(3_600),
+        )
+        sessions.create(first)
+        sessions.create(otherFamily)
+
+        val affected = sessions.revokeFamilyForLogout(FAMILY_ID, ROTATED_AT)
+
+        assertThat(affected).isEqualTo(1)
+        assertThat(sessions.findById(PREDECESSOR_ID)?.revokeReason).isEqualTo(Session.LOGOUT_REASON)
+        assertThat(sessions.findById(SECOND_SESSION_ID)?.revokedAt).isNull()
+    }
+
     private fun initialSession(): Session = Session.initial(
         id = PREDECESSOR_ID,
         userId = USER_ID,
@@ -198,9 +244,12 @@ class SessionStoreIntegrationTests(
         private val PREDECESSOR_ID = SessionId.from(UUID.fromString("019937b6-3600-7001-8000-000000000010"))
         private val SUCCESSOR_ID = SessionId.from(UUID.fromString("019937b6-3600-7001-8000-000000000011"))
         private val FAMILY_ID = TokenFamilyId.from(UUID.fromString("019937b6-3600-7001-8000-000000000012"))
+        private val SECOND_SESSION_ID = SessionId.from(UUID.fromString("019937b6-3600-7001-8000-000000000020"))
+        private val SECOND_FAMILY_ID = TokenFamilyId.from(UUID.fromString("019937b6-3600-7001-8000-000000000022"))
         private val PREDECESSOR_HASH = TokenHash.sha256("a".repeat(64))
         private val SUCCESSOR_HASH = TokenHash.sha256("b".repeat(64))
         private val IDEMPOTENCY_HASH = TokenHash.sha256("c".repeat(64))
+        private val SECOND_SESSION_HASH = TokenHash.sha256("e".repeat(64))
 
         @Container
         @ServiceConnection

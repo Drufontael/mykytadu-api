@@ -11,4 +11,6 @@ interface UserAccountRepository {
     fun findByEmail(email: Email): UserAccount?
 
     fun findById(userId: UserId): UserAccount?
+
+    fun findByIdForUpdate(userId: UserId): UserAccount?
 }
