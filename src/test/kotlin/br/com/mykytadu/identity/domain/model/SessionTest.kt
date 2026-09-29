@@ -53,6 +53,32 @@ class SessionTest {
     }
 
     @Test
+    fun `session expiration and replay boundaries are exact`() {
+        val createdAt = NOW.plusSeconds(10)
+        val expiresAt = NOW.plusSeconds(70)
+        val initial = Session.initial(
+            id = SESSION_ID,
+            userId = USER_ID,
+            refreshTokenHash = REFRESH_HASH,
+            tokenFamilyId = FAMILY_ID,
+            clientId = "mykytadu-android",
+            csrfTokenHash = null,
+            createdAt = createdAt,
+            expiresAt = expiresAt,
+        )
+        val rotatedAt = NOW.plusSeconds(20)
+        val replayUntil = rotatedAt.plusSeconds(120)
+        val rotated = initial.markRotated(rotatedAt, replay(replayUntil))
+
+        assertThat(initial.isActiveAt(createdAt.minusNanos(1))).isFalse()
+        assertThat(initial.isActiveAt(createdAt)).isTrue()
+        assertThat(initial.isActiveAt(expiresAt.minusNanos(1))).isTrue()
+        assertThat(initial.isActiveAt(expiresAt)).isFalse()
+        assertThat(rotated.isReplayAllowed(IDEMPOTENCY_HASH, replayUntil.minusNanos(1))).isTrue()
+        assertThat(rotated.isReplayAllowed(IDEMPOTENCY_HASH, replayUntil)).isFalse()
+    }
+
+    @Test
     fun `rejects rotation of inactive session and invalid replay metadata`() {
         val initial = session(clientId = "mykytadu-android", csrfHash = null)
         val rotated = initial.markRotated(NOW.plusSeconds(30), replay())
@@ -92,6 +118,9 @@ class SessionTest {
         private val CSRF_HASH = TokenHash.sha256("b".repeat(64))
         private val SUCCESSOR_HASH = TokenHash.sha256("c".repeat(64))
         private val IDEMPOTENCY_HASH = TokenHash.sha256("d".repeat(64))
+        private val USER_ID = UserId.from(UUID.fromString("019937b6-3600-7001-8000-000000000001"))
+        private val SESSION_ID = SessionId.from(UUID.fromString("019937b6-3600-7001-8000-000000000010"))
+        private val FAMILY_ID = TokenFamilyId.from(UUID.fromString("019937b6-3600-7001-8000-000000000011"))
         private val SUCCESSOR_ID = SessionId.from(UUID.fromString("019937b6-3600-7001-8000-000000000012"))
     }
 }

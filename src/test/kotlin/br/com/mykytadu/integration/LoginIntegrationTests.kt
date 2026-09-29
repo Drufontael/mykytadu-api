@@ -3,9 +3,13 @@ package br.com.mykytadu.integration
 import br.com.mykytadu.identity.api.AuthenticationClient
 import br.com.mykytadu.identity.api.CsrfOutcome
 import br.com.mykytadu.identity.api.IdentityLogin
+import br.com.mykytadu.identity.api.IdentityLogout
 import br.com.mykytadu.identity.api.IdentitySession
 import br.com.mykytadu.identity.api.LoginCommand
 import br.com.mykytadu.identity.api.LoginOutcome
+import br.com.mykytadu.identity.api.LogoutAllSessionsCommand
+import br.com.mykytadu.identity.api.LogoutOutcome
+import br.com.mykytadu.identity.api.LogoutSessionCommand
 import br.com.mykytadu.identity.api.RefreshOutcome
 import br.com.mykytadu.identity.api.RefreshSessionCommand
 import br.com.mykytadu.identity.api.ReissueCsrfCommand
@@ -32,6 +36,9 @@ import org.testcontainers.postgresql.PostgreSQLContainer
 import java.time.Clock
 import java.time.Instant
 import java.util.UUID
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 @Testcontainers
 @SpringBootTest
@@ -39,6 +46,7 @@ import java.util.UUID
 class LoginIntegrationTests(
     @Autowired private val login: IdentityLogin,
     @Autowired private val sessions: IdentitySession,
+    @Autowired private val logout: IdentityLogout,
     @Autowired private val accounts: UserAccountRepository,
     @Autowired private val passwordHasher: PasswordHasher,
     @Autowired private val accessTokens: AccessTokenValidator,
@@ -115,6 +123,82 @@ class LoginIntegrationTests(
                 Int::class.java,
             ),
         ).isEqualTo(1)
+    }
+
+    @Test
+    fun `concurrent refreshes with the same key produce one rotation and the same result`() {
+        val initial = (login.login(command(AuthenticationClient.ANDROID)) as LoginOutcome.Created).session
+        val refreshCommand =
+            RefreshSessionCommand(requireNotNull(initial.refreshToken), "parallel-refresh", null, null, false)
+
+        val outcomes = concurrently(
+            { sessions.refresh(refreshCommand) },
+            { sessions.refresh(refreshCommand) },
+        )
+
+        assertThat(outcomes).allMatch { it is RefreshOutcome.Refreshed }
+        val refreshed = outcomes.map { it as RefreshOutcome.Refreshed }
+        assertThat(refreshed.map { it.session.refreshToken }.distinct()).hasSize(1)
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM identity.sessions", Int::class.java)).isEqualTo(2)
+        assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM identity.sessions WHERE revoke_reason = 'rotated'",
+                Int::class.java,
+            ),
+        )
+            .isEqualTo(1)
+    }
+
+    @Test
+    fun `refresh racing with logout leaves the family revoked`() {
+        val initial = (login.login(command(AuthenticationClient.ANDROID)) as LoginOutcome.Created).session
+        val refreshCommand =
+            RefreshSessionCommand(requireNotNull(initial.refreshToken), "refresh-logout", null, null, false)
+
+        val outcomes = concurrently(
+            { sessions.refresh(refreshCommand) },
+            {
+                logout.logout(
+                    LogoutSessionCommand(USER_ID.value, requireNotNull(initial.refreshToken), null, null, false),
+                )
+            },
+        )
+
+        assertThat(outcomes[1]).isEqualTo(LogoutOutcome.Completed)
+        assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM identity.sessions WHERE revoked_at IS NULL",
+                Int::class.java,
+            ),
+        )
+            .isZero()
+        assertThat(outcomes[0]).isInstanceOfAny(
+            RefreshOutcome.SessionInvalid::class.java,
+            RefreshOutcome.Refreshed::class.java,
+        )
+    }
+
+    @Test
+    fun `logout all racing with refresh leaves every account session revoked`() {
+        val initial = (login.login(command(AuthenticationClient.ANDROID)) as LoginOutcome.Created).session
+        val refreshCommand =
+            RefreshSessionCommand(requireNotNull(initial.refreshToken), "refresh-logout-all", null, null, false)
+
+        val outcomes = concurrently(
+            { sessions.refresh(refreshCommand) },
+            {
+                logout.logoutAll(LogoutAllSessionsCommand(USER_ID.value, null, null, null, false))
+            },
+        )
+
+        assertThat(outcomes[1]).isEqualTo(LogoutOutcome.Completed)
+        assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM identity.sessions WHERE revoked_at IS NULL",
+                Int::class.java,
+            ),
+        )
+            .isZero()
     }
 
     @Test
@@ -213,6 +297,27 @@ class LoginIntegrationTests(
         requestKey = UUID.randomUUID().toString(),
         origin = origin,
     )
+
+    private fun <T> concurrently(first: () -> T, second: () -> T): List<T> {
+        val executor = Executors.newFixedThreadPool(2)
+        val ready = CountDownLatch(2)
+        val start = CountDownLatch(1)
+        return try {
+            val tasks = listOf(first, second).map { operation ->
+                executor.submit<T> {
+                    ready.countDown()
+                    check(start.await(10, TimeUnit.SECONDS))
+                    operation()
+                }
+            }
+            check(ready.await(10, TimeUnit.SECONDS))
+            start.countDown()
+            tasks.map { it.get(20, TimeUnit.SECONDS) }
+        } finally {
+            start.countDown()
+            executor.shutdownNow()
+        }
+    }
 
     companion object {
         private val NOW = Instant.parse("2026-09-22T12:00:00Z")

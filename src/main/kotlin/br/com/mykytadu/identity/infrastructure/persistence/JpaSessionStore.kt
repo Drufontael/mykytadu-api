@@ -7,6 +7,7 @@ import br.com.mykytadu.identity.domain.model.SessionRotationReplay
 import br.com.mykytadu.identity.domain.model.TokenFamilyId
 import br.com.mykytadu.identity.domain.model.TokenHash
 import br.com.mykytadu.identity.domain.model.UserId
+import jakarta.persistence.EntityManager
 import jakarta.persistence.LockModeType
 import org.springframework.context.annotation.Profile
 import org.springframework.data.jpa.repository.JpaRepository
@@ -67,7 +68,10 @@ internal interface SpringDataSessionRepository : JpaRepository<SessionEntity, UU
 
 @Repository
 @Profile("!test")
-internal class JpaSessionStore(private val sessions: SpringDataSessionRepository) : SessionStore {
+internal class JpaSessionStore(
+    private val sessions: SpringDataSessionRepository,
+    private val entityManager: EntityManager,
+) : SessionStore {
 
     @Transactional
     override fun create(session: Session) {
@@ -89,7 +93,9 @@ internal class JpaSessionStore(private val sessions: SpringDataSessionRepository
 
     @Transactional
     override fun findFamilyForUpdate(tokenFamilyId: TokenFamilyId): List<Session> =
-        sessions.findFamilyForUpdate(tokenFamilyId.value).map { it.toDomain() }
+        sessions.findFamilyForUpdate(tokenFamilyId.value)
+            .onEach { entityManager.refresh(it, LockModeType.PESSIMISTIC_WRITE) }
+            .map { it.toDomain() }
 
     @Transactional
     override fun revokeRenewableFamily(tokenFamilyId: TokenFamilyId, revokedAt: Instant): Int =

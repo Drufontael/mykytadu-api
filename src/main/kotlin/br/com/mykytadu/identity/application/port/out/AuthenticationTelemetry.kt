@@ -11,4 +11,10 @@ interface AuthenticationTelemetry {
     fun rateLimited()
 
     fun refreshReuseDetected()
+
+    fun refreshRotated()
+
+    fun refreshExpired()
+
+    fun sessionRevoked()
 }

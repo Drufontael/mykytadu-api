@@ -48,7 +48,10 @@ internal class SessionService(
         return when {
             session == null -> CsrfOutcome.SessionInvalid
 
-            !sessions.accountIsActiveUnderLock(session, accounts, now) -> CsrfOutcome.SessionInvalid
+            !sessions.accountIsActiveUnderLock(session, accounts, now) -> {
+                telemetry.sessionRevoked()
+                CsrfOutcome.SessionInvalid
+            }
 
             !session.isActiveAt(now) || session.clientId != Session.WEB_CLIENT_ID -> CsrfOutcome.SessionInvalid
 
@@ -64,8 +67,14 @@ internal class SessionService(
     override fun refresh(command: RefreshSessionCommand): RefreshOutcome {
         val now = clock.instant()
         val predecessor = sessions.findSessionFamilyLocked(command.refreshToken, tokens, accounts)
-        return predecessor?.takeIf { sessions.accountIsActiveUnderLock(it, accounts, now) }
-            ?.let { refreshKnown(it, command, now) } ?: RefreshOutcome.SessionInvalid
+        return predecessor?.let {
+            if (sessions.accountIsActiveUnderLock(it, accounts, now)) {
+                refreshKnown(it, command, now)
+            } else {
+                telemetry.sessionRevoked()
+                RefreshOutcome.SessionInvalid
+            }
+        } ?: RefreshOutcome.SessionInvalid
     }
 
     private fun refreshKnown(
@@ -80,7 +89,10 @@ internal class SessionService(
             predecessor.revokeReason == Session.ROTATED_REASON ->
                 replay(predecessor, client, command, now)
 
-            !predecessor.isActiveAt(now) -> RefreshOutcome.SessionInvalid
+            !predecessor.isActiveAt(now) -> {
+                if (predecessor.revokedAt == null && !now.isBefore(predecessor.expiresAt)) telemetry.refreshExpired()
+                RefreshOutcome.SessionInvalid
+            }
 
             client.web && !validWebRequest(predecessor, command) -> RefreshOutcome.CsrfInvalid
 
@@ -144,6 +156,7 @@ internal class SessionService(
         )
         sessions.create(successor)
         sessions.update(predecessor.markRotated(now, replay))
+        telemetry.refreshRotated()
         return refreshed(principal, client, refreshToken, csrfToken, replay)
     }
 

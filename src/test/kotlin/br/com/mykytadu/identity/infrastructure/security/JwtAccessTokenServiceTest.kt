@@ -63,6 +63,22 @@ class JwtAccessTokenServiceTest {
     }
 
     @Test
+    fun `validates not before and expiration at exact instants without clock skew`() {
+        val expiresAt = NOW.plusSeconds(600)
+        val ring = keyRing("active")
+        val token = service(ring).issue(PRINCIPAL, AuthenticationClient.ANDROID, TOKEN_ID, NOW, expiresAt)
+        val verifier = service(ring)
+
+        assertThatThrownBy { verifier.validate(token, NOW.minusSeconds(1)) }
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessage("Access token is not active")
+        assertThat(verifier.validate(token, NOW).notBefore).isEqualTo(NOW)
+        assertThatThrownBy { verifier.validate(token, expiresAt) }
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessage("Access token is expired")
+    }
+
+    @Test
     fun `keeps the previous public key valid during signing key rotation`() {
         val previous = keyRing("previous")
         val current = keyRing("current")

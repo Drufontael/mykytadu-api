@@ -106,6 +106,25 @@ class SessionServiceTest {
     }
 
     @Test
+    fun `rejects an expired refresh at the injected clock instant and records bounded telemetry`() {
+        val expired = Session.initial(
+            id = PREDECESSOR_ID,
+            userId = USER_ID,
+            refreshTokenHash = HASHED_REFRESH,
+            tokenFamilyId = FAMILY_ID,
+            clientId = AuthenticationClient.ANDROID.clientId,
+            csrfTokenHash = null,
+            createdAt = NOW.minusSeconds(60),
+            expiresAt = NOW,
+        )
+        val telemetry = RecordingTelemetry()
+        val result = service(RecordingSessionStore(expired), telemetry).refresh(refreshCommand(false, null, null))
+
+        assertThat(result).isEqualTo(RefreshOutcome.SessionInvalid)
+        assertThat(telemetry.expirations).isEqualTo(1)
+    }
+
+    @Test
     fun `does not revoke a Web family when replay request fails csrf validation`() {
         val store = RecordingSessionStore(initialSession(AuthenticationClient.WEB, HASHED_CSRF))
         val telemetry = RecordingTelemetry()
@@ -194,6 +213,7 @@ class SessionServiceTest {
         tokens = FixedTokens(),
         originPolicy = { it == ALLOWED_ORIGIN },
         clock = Clock.fixed(NOW, ZoneOffset.UTC),
+        telemetry = RecordingTelemetry(),
     )
 
     private fun refreshCommand(web: Boolean, csrfToken: String?, origin: String?) = RefreshSessionCommand(
@@ -287,6 +307,7 @@ class SessionServiceTest {
 
     private class RecordingTelemetry : AuthenticationTelemetry {
         var reuseDetections = 0
+        var expirations = 0
         override fun accepted() = Unit
         override fun invalidCredentials() = Unit
         override fun emailVerificationRequired() = Unit
@@ -294,6 +315,14 @@ class SessionServiceTest {
         override fun refreshReuseDetected() {
             reuseDetections++
         }
+
+        override fun refreshRotated() = Unit
+
+        override fun refreshExpired() {
+            expirations++
+        }
+
+        override fun sessionRevoked() = Unit
     }
 
     private class FixedAccountRepository(private val account: UserAccount) : UserAccountRepository {

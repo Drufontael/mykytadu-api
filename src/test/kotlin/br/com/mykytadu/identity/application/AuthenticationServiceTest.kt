@@ -206,6 +206,12 @@ class AuthenticationServiceTest {
         }
 
         override fun refreshReuseDetected() = Unit
+
+        override fun refreshRotated() = Unit
+
+        override fun refreshExpired() = Unit
+
+        override fun sessionRevoked() = Unit
     }
 
     companion object {

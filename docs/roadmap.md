@@ -57,7 +57,7 @@ O roadmap apresenta apenas o estado consolidado. Histórico, evidências, bloque
 | B1.2 | **Concluída** | 2026-09-17 | 2026-09-17 | [Banco, migrações e observabilidade](sprints/B1.2.md) |
 | B2.1 | **Concluída** | 2026-09-18 | 2026-09-23 | [Cadastro, verificação e login](sprints/B2.1.md) |
 | B-2 | **Concluída** | 2026-09-23 | 2026-09-23 | [Onboarding e operação documental](sprints/B-2.md) |
-| B2.2 | **Em andamento** | 2026-09-27 | — | [Sessões, refresh e logout](sprints/B2.2.md) |
+| B2.2 | **Concluída** | 2026-09-27 | 2026-09-29 | [Sessões, refresh e logout](sprints/B2.2.md) |
 | B2.3 | Não iniciada | — | — | a criar no planejamento da sprint |
 | B3.1 | Não iniciada | — | — | a criar no planejamento da sprint |
 | B3.2 | Não iniciada | — | — | a criar no planejamento da sprint |
@@ -261,7 +261,7 @@ flowchart LR
 | B2.2-T3 | Detectar reutilização | revogar a família comprometida | reuso de token rotacionado revoga a família e produz evento/auditoria sem registrar token |
 | B2.2-T4 | Implementar logout atual e global | operações idempotentes | logout atual revoga uma sessão; logout-all revoga todas as sessões do usuário |
 | B2.2-T5 | Tratar bloqueio/exclusão | usuário inativo não mantém acesso renovável | bloqueio impede refresh e revoga sessões conforme decisão registrada |
-| B2.2-T6 | Testar concorrência e relógio | relógio injetável; sem sleeps frágeis | cenários simultâneos, expiração e clock skew têm testes determinísticos |
+| B2.2-T6 | Testar concorrência, tempo e abuso | relógio injetável; sem sleeps frágeis; sem dados sensíveis em telemetria | corridas, expiração/replay e validade JWT têm testes determinísticos; política de clock skew é explícita |
 
 **Saída da sprint:** núcleo de Identity completo para sessões.
 

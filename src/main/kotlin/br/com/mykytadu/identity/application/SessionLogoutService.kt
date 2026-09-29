@@ -4,6 +4,7 @@ import br.com.mykytadu.identity.api.IdentityLogout
 import br.com.mykytadu.identity.api.LogoutAllSessionsCommand
 import br.com.mykytadu.identity.api.LogoutOutcome
 import br.com.mykytadu.identity.api.LogoutSessionCommand
+import br.com.mykytadu.identity.application.port.out.AuthenticationTelemetry
 import br.com.mykytadu.identity.application.port.out.LoginOriginPolicy
 import br.com.mykytadu.identity.application.port.out.SessionStore
 import br.com.mykytadu.identity.application.port.out.SessionTokenCryptography
@@ -23,6 +24,7 @@ internal class SessionLogoutService(
     private val tokens: SessionTokenCryptography,
     private val originPolicy: LoginOriginPolicy,
     private val clock: Clock,
+    private val telemetry: AuthenticationTelemetry,
 ) : IdentityLogout {
 
     @Transactional
@@ -39,12 +41,10 @@ internal class SessionLogoutService(
                     command.web && command.csrfToken?.let(tokens::hash) != session.csrfTokenHash ->
                         LogoutOutcome.CsrfInvalid
 
-                    session.isActiveAt(now) -> {
-                        sessions.revokeFamilyForLogout(session.tokenFamilyId, now)
+                    else -> {
+                        if (sessions.revokeFamilyForLogout(session.tokenFamilyId, now) > 0) telemetry.sessionRevoked()
                         LogoutOutcome.Completed
                     }
-
-                    else -> LogoutOutcome.Completed
                 }
             }
             ?: LogoutOutcome.Completed
@@ -63,7 +63,7 @@ internal class SessionLogoutService(
             !originIsValid || !csrfIsValid -> LogoutOutcome.CsrfInvalid
 
             else -> {
-                sessions.revokeAllForUser(userId, now)
+                if (sessions.revokeAllForUser(userId, now) > 0) telemetry.sessionRevoked()
                 LogoutOutcome.Completed
             }
         }
