@@ -29,7 +29,6 @@ internal class SessionLogoutService(
 
     @Transactional
     override fun logout(command: LogoutSessionCommand): LogoutOutcome {
-        val now = clock.instant()
         if (command.web && !originPolicy.isAllowed(command.origin)) return LogoutOutcome.CsrfInvalid
         return sessions.findByRefreshTokenHash(tokens.hash(command.refreshToken))
             ?.takeIf { it.userId.value == command.userId }
@@ -42,6 +41,7 @@ internal class SessionLogoutService(
                         LogoutOutcome.CsrfInvalid
 
                     else -> {
+                        val now = clock.instant()
                         if (sessions.revokeFamilyForLogout(session.tokenFamilyId, now) > 0) telemetry.sessionRevoked()
                         LogoutOutcome.Completed
                     }
@@ -52,7 +52,6 @@ internal class SessionLogoutService(
 
     @Transactional
     override fun logoutAll(command: LogoutAllSessionsCommand): LogoutOutcome {
-        val now = clock.instant()
         val userId = UserId.from(command.userId)
         val accountExists = accounts.findByIdForUpdate(userId) != null
         val originIsValid = !command.web || originPolicy.isAllowed(command.origin)
@@ -63,6 +62,7 @@ internal class SessionLogoutService(
             !originIsValid || !csrfIsValid -> LogoutOutcome.CsrfInvalid
 
             else -> {
+                val now = clock.instant()
                 if (sessions.revokeAllForUser(userId, now) > 0) telemetry.sessionRevoked()
                 LogoutOutcome.Completed
             }
