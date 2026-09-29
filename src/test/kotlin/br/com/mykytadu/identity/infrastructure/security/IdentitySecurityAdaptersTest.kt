@@ -1,5 +1,6 @@
 package br.com.mykytadu.identity.infrastructure.security
 
+import br.com.mykytadu.identity.domain.model.SessionId
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder
@@ -7,6 +8,8 @@ import java.security.SecureRandom
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import java.util.Base64
+import java.util.UUID
 
 class IdentitySecurityAdaptersTest {
 
@@ -59,6 +62,27 @@ class IdentitySecurityAdaptersTest {
         assertThat(hasher.matches("wrong-password", hash)).isFalse()
         assertThat(hasher.matches("a-secure-test-password", null)).isFalse()
         assertThat(hash.encodedValue()).startsWith("${'$'}argon2id${'$'}v=")
+    }
+
+    @Test
+    fun `derives deterministic refresh tokens with the selected HMAC key`() {
+        val key = Base64.getEncoder().encodeToString(ByteArray(32) { 7 })
+        val deriver = RefreshDerivationKeyFactory.create(
+            RefreshDerivationProperties(
+                activeKeyId = "refresh-key-1",
+                activeKeyBase64 = key,
+            ),
+            SecureRandom(),
+        )
+        val predecessor = SessionId.from(UUID.fromString("019937b6-3600-7001-8000-000000000010"))
+        val successor = SessionId.from(UUID.fromString("019937b6-3600-7001-8000-000000000011"))
+
+        val first = deriver.derive("refresh-key-1", predecessor, successor, "request-1")
+
+        assertThat(first).hasSize(43)
+        assertThat(deriver.derive("refresh-key-1", predecessor, successor, "request-1")).isEqualTo(first)
+        assertThat(deriver.derive("refresh-key-1", predecessor, successor, "request-2")).isNotEqualTo(first)
+        assertThat(deriver.derive("unknown", predecessor, successor, "request-1")).isNull()
     }
 
     private fun java.util.UUID.timestampBits(): Long = mostSignificantBits ushr 16

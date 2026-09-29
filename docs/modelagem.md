@@ -1,8 +1,8 @@
 # MykytaDu API — Modelagem evolutiva e arquitetura
 
 > **Status:** modelo conceitual inicial; evolui com ADRs e implementação
-> **Versão:** 0.4
-> **Data de referência:** 19 de setembro de 2026
+> **Versão:** 0.5
+> **Data de referência:** 27 de setembro de 2026
 > **Documento de origem:** [Documento Mestre Backend](documento-mestre-backend.md)
 
 ## 1. Finalidade e regras de evolução
@@ -171,13 +171,24 @@ classDiagram
         +UUID id
         +UUID userId
         +UUID tokenFamilyId
+        +UUID parentSessionId
         +String clientId
         +TokenHash refreshTokenHash
         +TokenHash csrfTokenHash
         +Instant expiresAt
         +Instant revokedAt
-        +rotate()
+        +SessionRotationReplay rotationReplay
+        +markRotated()
         +revoke()
+    }
+    class SessionRotationReplay {
+        +UUID successorSessionId
+        +TokenHash idempotencyKeyHash
+        +String derivationKeyId
+        +Instant replayUntil
+        +UUID accessTokenId
+        +Instant accessIssuedAt
+        +Instant accessExpiresAt
     }
     class ActionToken {
         +UUID id
@@ -212,6 +223,8 @@ classDiagram
 
     User "1" *-- "1" PasswordCredential
     User "1" *-- "0..*" Session
+    Session "0..1" --> "0..1" Session : predecessor/successor
+    Session "1" *-- "0..1" SessionRotationReplay
     User "1" *-- "0..*" ActionToken
     User "1" *-- "1..*" RoleAssignment
     User --> UserStatus
@@ -227,9 +240,21 @@ classDiagram
 - token de ação é de uso único, tem finalidade específica e expira; o token de
   verificação de e-mail vale por 24 horas conforme o ADR-017;
 - refresh token só existe em texto puro no instante de emissão/recepção; persiste-se seu hash;
-- uma rotação consome o token anterior atomicamente;
+- uma rotação bloqueia e consome o predecessor atomicamente, cria exatamente
+  um sucessor na mesma família e preserva a linhagem entre gerações;
+- o replay com a mesma chave de idempotência é aceito somente dentro da janela
+  de dois minutos do [ADR-019](adr/ADR-019-rotacao-idempotente-e-reemissao-de-csrf.md);
+  banco e domínio guardam apenas o hash da chave e os metadados necessários
+  para reproduzir a resposta, nunca os tokens em texto puro;
+- o header `Idempotency-Key` é opcional em `/api/v1`; sem ele, a primeira
+  rotação gera uma chave interna aleatória que não é devolvida, portanto um
+  predecessor consumido não pode ser repetido de modo idempotente;
 - reutilização de token consumido revoga toda a família;
 - usuário bloqueado ou excluído não renova sessão;
+- refresh e reemissão de CSRF verificam o estado da conta sob lock do usuário;
+  ao detectar conta inativa, revogam as sessões ainda renováveis da conta;
+  a operação futura que altera o estado deve revogar as sessões na mesma
+  transação, sem esperar uma tentativa de refresh;
 - access token não é persistido.
 
 ## 7. Modelo de domínio — Translation
@@ -322,11 +347,19 @@ erDiagram
         uuid user_id FK
         text refresh_token_hash UK
         uuid token_family_id
+        uuid parent_session_id FK
+        uuid rotated_to_session_id FK
         text client_id
         text csrf_token_hash
         timestamptz expires_at
         timestamptz revoked_at
         text revoke_reason
+        text rotation_idempotency_key_hash
+        text refresh_derivation_kid
+        timestamptz replay_until
+        uuid replay_access_token_id
+        timestamptz replay_access_issued_at
+        timestamptz replay_access_expires_at
         timestamptz created_at
     }
     ACTION_TOKENS {
@@ -361,6 +394,7 @@ erDiagram
     USERS ||--|| PASSWORD_CREDENTIALS : possui
     USERS ||--|{ ROLES : recebe
     USERS ||--o{ SESSIONS : abre
+    SESSIONS o|--o| SESSIONS : sucede
     USERS ||--o{ ACTION_TOKENS : recebe
 ```
 
@@ -388,6 +422,10 @@ Translation a confirmar com consultas reais:
 - `identity.sessions(refresh_token_hash)` unique;
 - `identity.sessions(user_id, expires_at)` parcial para sessões não revogadas;
 - `identity.sessions(token_family_id)` para revogação de família;
+- `identity.sessions(parent_session_id)` unique e parcial para garantir um
+  único sucessor por geração;
+- `identity.sessions(rotated_to_session_id)` parcial para navegar da evidência
+  de rotação ao sucessor;
 - `identity.action_tokens(token_hash)` unique e `identity.action_tokens(expires_at)`
   para limpeza por expiração;
 - `translation.translations(content_hash)` unique;
@@ -459,9 +497,9 @@ sequenceDiagram
     I-->>C: resposta do recurso
     C->>I: POST /auth/refresh
     Note over C,I: Web envia Cookie, X-CSRF-Token e Origin, enquanto nativos enviam refresh do cofre
-    I->>D: bloquear/consumir sessão atomicamente
+    I->>D: bloquear predecessor pelo hash e validar estado
     alt token válido e não consumido
-        I->>D: persistir novo hash na família
+        I->>D: criar sucessor e registrar rotação/replay atomicamente
         alt Web
             I-->>B: Set-Cookie com novo refresh
             I-->>C: novo access + csrfToken
@@ -469,13 +507,16 @@ sequenceDiagram
             I-->>C: novo access + novo refresh
             C->>B: substituir refresh no cofre protegido
         end
-    else token reutilizado
+    else repetição idempotente dentro de 2 minutos
+        I->>I: derivar novamente os mesmos tokens via HMAC
+        I-->>C: repetir a resposta da rotação original
+    else token reutilizado fora da política
         I->>D: revogar família
         I-->>C: 401 Problem Details (session_invalid)
     end
 ```
 
-O fluxo detalhado, incluindo obtenção do synchronizer token, logout, retry único da requisição original e limpeza da sessão, está em [ADR-011](adr/ADR-011-sessao-web-com-refresh-token-em-cookie.md). JWT: `sub`, `iss`, `aud`, `iat`, `exp`, `jti` e papéis mínimos. Dados mutáveis ou pessoais desnecessários não devem virar claims.
+O fluxo detalhado, incluindo obtenção do synchronizer token, logout, retry único da requisição original e limpeza da sessão, está em [ADR-011](adr/ADR-011-sessao-web-com-refresh-token-em-cookie.md). A linhagem, a repetição idempotente e a reemissão de CSRF são definidas pelo [ADR-019](adr/ADR-019-rotacao-idempotente-e-reemissao-de-csrf.md). JWT: `sub`, `iss`, `aud`, `iat`, `exp`, `jti` e papéis mínimos. Dados mutáveis ou pessoais desnecessários não devem virar claims.
 
 ### 9.3 Tradução com cache
 

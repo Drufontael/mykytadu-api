@@ -39,6 +39,10 @@ class StagingConfigurationTests {
             .isEqualTo("\${MYKYTADU_JWT_PUBLIC_KEY_PEM:}")
         assertThat(baseProperties.getProperty("mykytadu.identity.jwt.key-mode"))
             .isEqualTo("configured")
+        assertThat(baseProperties.getProperty("mykytadu.identity.refresh-derivation.active-key-id"))
+            .isEqualTo("\${MYKYTADU_REFRESH_ACTIVE_KEY_ID:}")
+        assertThat(baseProperties.getProperty("mykytadu.identity.refresh-derivation.active-key-base64"))
+            .isEqualTo("\${MYKYTADU_REFRESH_ACTIVE_KEY_BASE64:}")
         assertThat(properties.source.toString())
             .doesNotContain("mykytadu-local", "localhost", "password: <")
     }

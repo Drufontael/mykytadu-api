@@ -1,8 +1,8 @@
 # Registro de evolução das sprints
 
 > **Status:** convenção ativa
-> **Versão:** 0.1
-> **Data de referência:** 4 de setembro de 2026
+> **Versão:** 0.2
+> **Data de referência:** 27 de setembro de 2026
 
 ## 1. Finalidade
 
@@ -46,7 +46,7 @@ Tarefas usam `Não iniciada`, `Em andamento`, `Em validação`, `Concluída`, `B
 | execução, estado detalhado e evidências | arquivo da sprint |
 | decisão arquitetural e consequências | `docs/adr/ADR-NNN-*.md` |
 | arquitetura e modelo vigentes | `docs/modelagem.md` |
-| contrato HTTP vigente | futura especificação `docs/api/openapi.yaml` |
+| contrato HTTP vigente | `docs/api/openapi.yaml` |
 
 Se houver divergência, ela deve ser corrigida; não se mantém duplicação conflitante.
 

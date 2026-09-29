@@ -66,3 +66,12 @@ conteúdo:
 O teste `ModuleObservationTest` exerce uma falha de domínio e uma de
 infraestrutura, confirma a separação por código e verifica que `traceId` não
 entra nas dimensões da métrica.
+
+Identity também conta tentativas de autenticação em
+`mykytadu.identity.authentication.attempts`, com categorias limitadas. A
+detecção de reutilização de refresh usa apenas a categoria
+`refresh_reuse_detected` e emite evento estruturado com módulo, evento,
+categoria e resultado fixos. Sessões também registram somente as categorias
+`refresh_rotated`, `refresh_expired`, `refresh_reuse_detected` e
+`session_revoked`; nenhum identificador ou credencial acompanha os sinais.
+`traceId` permanece disponível apenas no MDC/log, nunca como dimensão de métrica.

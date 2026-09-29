@@ -12,10 +12,13 @@ import br.com.mykytadu.identity.application.port.out.LoginOriginPolicy
 import br.com.mykytadu.identity.application.port.out.SessionIdGenerator
 import br.com.mykytadu.identity.application.port.out.SessionStore
 import br.com.mykytadu.identity.application.port.out.SessionTokenCryptography
+import br.com.mykytadu.identity.application.port.out.UserAccountRepository
 import br.com.mykytadu.identity.domain.model.Session
 import br.com.mykytadu.identity.domain.model.UserId
+import br.com.mykytadu.identity.domain.model.UserStatus
 import org.springframework.context.annotation.Profile
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.time.Clock
 import java.time.Duration
 
@@ -23,6 +26,7 @@ import java.time.Duration
 @Profile("!test")
 internal class LoginService(
     private val authentication: IdentityAuthentication,
+    private val accounts: UserAccountRepository,
     private val sessions: SessionStore,
     private val idGenerator: SessionIdGenerator,
     private val tokenCryptography: SessionTokenCryptography,
@@ -32,6 +36,7 @@ internal class LoginService(
     private val properties: LoginApplicationProperties,
 ) : IdentityLogin {
 
+    @Transactional
     override fun login(command: LoginCommand): LoginOutcome {
         val authenticationOutcome = authentication.authenticate(
             AuthenticateCommand(command.email, command.password, command.client, command.requestKey),
@@ -47,11 +52,17 @@ internal class LoginService(
     private fun createSession(
         authenticated: AuthenticationOutcome.Authenticated,
         command: LoginCommand,
-    ): LoginOutcome {
-        if (authenticated.client.web && !originPolicy.isAllowed(command.origin)) {
-            return LoginOutcome.InvalidOrigin
-        }
+    ): LoginOutcome = if (authenticated.client.web && !originPolicy.isAllowed(command.origin)) {
+        LoginOutcome.InvalidOrigin
+    } else {
+        createSessionForAllowedOrigin(authenticated)
+    }
+
+    private fun createSessionForAllowedOrigin(authenticated: AuthenticationOutcome.Authenticated): LoginOutcome {
         val now = clock.instant()
+        if (accounts.findByIdForUpdate(UserId.from(authenticated.principal.id))?.user?.status != UserStatus.ACTIVE) {
+            return LoginOutcome.InvalidCredentials
+        }
         val refreshToken = tokenCryptography.generateToken()
         val csrfToken = tokenCryptography.generateToken().takeIf { authenticated.client.web }
         val expiresAt = now.plus(properties.refreshTokenTtl)

@@ -1,0 +1,259 @@
+package br.com.mykytadu.integration
+
+import br.com.mykytadu.identity.application.port.out.SessionStore
+import br.com.mykytadu.identity.domain.model.Session
+import br.com.mykytadu.identity.domain.model.SessionId
+import br.com.mykytadu.identity.domain.model.SessionRotationReplay
+import br.com.mykytadu.identity.domain.model.TokenFamilyId
+import br.com.mykytadu.identity.domain.model.TokenHash
+import br.com.mykytadu.identity.domain.model.UserId
+import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection
+import org.springframework.dao.DataIntegrityViolationException
+import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.test.context.ActiveProfiles
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
+import org.testcontainers.junit.jupiter.Container
+import org.testcontainers.junit.jupiter.Testcontainers
+import org.testcontainers.postgresql.PostgreSQLContainer
+import java.sql.Timestamp
+import java.time.Instant
+import java.util.UUID
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+
+@Testcontainers
+@SpringBootTest
+@ActiveProfiles("integration-test")
+class SessionStoreIntegrationTests(
+    @Autowired private val sessions: SessionStore,
+    @Autowired private val jdbcTemplate: JdbcTemplate,
+    @Autowired private val transactionManager: PlatformTransactionManager,
+) {
+
+    @BeforeEach
+    fun prepareAccount() {
+        jdbcTemplate.update(
+            "TRUNCATE TABLE identity.sessions, identity.action_tokens, identity.roles, " +
+                "identity.password_credentials, identity.users",
+        )
+        jdbcTemplate.update(
+            """
+                INSERT INTO identity.users(
+                    id, email, normalized_email, display_name, status,
+                    email_verified_at, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, 'active', ?, ?, ?)
+            """.trimIndent(),
+            USER_ID.value,
+            "session-store@example.test",
+            "session-store@example.test",
+            "Session Store",
+            Timestamp.from(NOW),
+            Timestamp.from(NOW),
+            Timestamp.from(NOW),
+        )
+    }
+
+    @Test
+    fun `round trips a rotated predecessor and its successor`() {
+        val predecessor = initialSession()
+        val successor = Session.successor(
+            id = SUCCESSOR_ID,
+            predecessorId = predecessor.id,
+            userId = predecessor.userId,
+            refreshTokenHash = SUCCESSOR_HASH,
+            tokenFamilyId = predecessor.tokenFamilyId,
+            clientId = predecessor.clientId,
+            csrfTokenHash = null,
+            createdAt = ROTATED_AT,
+            expiresAt = NOW.plusSeconds(7_200),
+        )
+        val replay = replay()
+
+        sessions.create(predecessor)
+        sessions.create(successor)
+        sessions.update(predecessor.markRotated(ROTATED_AT, replay))
+
+        val restoredPredecessor = sessions.findByRefreshTokenHash(PREDECESSOR_HASH)
+        val restoredSuccessor = sessions.findById(SUCCESSOR_ID)
+        val lockedFamily = sessions.findFamilyForUpdate(FAMILY_ID)
+        assertThat(restoredPredecessor?.rotationReplay).isEqualTo(replay)
+        assertThat(restoredPredecessor?.revokeReason).isEqualTo(Session.ROTATED_REASON)
+        assertThat(restoredSuccessor?.parentSessionId).isEqualTo(PREDECESSOR_ID)
+        assertThat(restoredSuccessor?.tokenFamilyId).isEqualTo(FAMILY_ID)
+        assertThat(lockedFamily.map { it.id }).containsExactly(PREDECESSOR_ID, SUCCESSOR_ID)
+    }
+
+    @Test
+    fun `database rejects incomplete rotation metadata`() {
+        sessions.create(initialSession())
+
+        assertThatThrownBy {
+            jdbcTemplate.update(
+                """
+                    UPDATE identity.sessions
+                    SET revoked_at = ?, revoke_reason = 'rotated'
+                    WHERE id = ?
+                """.trimIndent(),
+                Timestamp.from(ROTATED_AT),
+                PREDECESSOR_ID.value,
+            )
+        }.isInstanceOf(DataIntegrityViolationException::class.java)
+    }
+
+    @Test
+    fun `revokes every renewable generation in a family atomically`() {
+        val predecessor = initialSession()
+        val successor = Session.successor(
+            id = SUCCESSOR_ID,
+            predecessorId = predecessor.id,
+            userId = predecessor.userId,
+            refreshTokenHash = SUCCESSOR_HASH,
+            tokenFamilyId = predecessor.tokenFamilyId,
+            clientId = predecessor.clientId,
+            csrfTokenHash = null,
+            createdAt = ROTATED_AT,
+            expiresAt = NOW.plusSeconds(7_200),
+        )
+        sessions.create(predecessor)
+        sessions.create(successor)
+
+        val affected = sessions.revokeRenewableFamily(FAMILY_ID, ROTATED_AT)
+
+        assertThat(affected).isEqualTo(2)
+        assertThat(sessions.findById(PREDECESSOR_ID)?.revokeReason).isEqualTo(Session.REUSE_DETECTED_REASON)
+        assertThat(sessions.findById(SUCCESSOR_ID)?.revokeReason).isEqualTo(Session.REUSE_DETECTED_REASON)
+    }
+
+    @Test
+    fun `family lock makes a concurrent operation observe reuse revocation`() {
+        sessions.create(initialSession())
+        val executor = Executors.newFixedThreadPool(2)
+        val transaction = TransactionTemplate(transactionManager)
+        val firstLocked = CountDownLatch(1)
+        val releaseFirst = CountDownLatch(1)
+
+        try {
+            val revoker = executor.submit {
+                transaction.executeWithoutResult {
+                    val session = sessions.findFamilyForUpdate(FAMILY_ID).single()
+                    firstLocked.countDown()
+                    check(releaseFirst.await(10, TimeUnit.SECONDS))
+                    sessions.update(session.revoke(ROTATED_AT, Session.REUSE_DETECTED_REASON))
+                }
+            }
+            assertThat(firstLocked.await(10, TimeUnit.SECONDS)).isTrue
+
+            val secondStarted = CountDownLatch(1)
+            val contender = executor.submit<List<Session>> {
+                transaction.execute {
+                    secondStarted.countDown()
+                    sessions.findFamilyForUpdate(FAMILY_ID)
+                }.orEmpty()
+            }
+            assertThat(secondStarted.await(10, TimeUnit.SECONDS)).isTrue
+            releaseFirst.countDown()
+
+            revoker.get(10, TimeUnit.SECONDS)
+            val observed = contender.get(10, TimeUnit.SECONDS).single()
+            assertThat(observed.revokeReason).isEqualTo(Session.REUSE_DETECTED_REASON)
+        } finally {
+            releaseFirst.countDown()
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `logout all revokes renewable sessions from every family of the user`() {
+        val first = initialSession()
+        val second = Session.initial(
+            id = SECOND_SESSION_ID,
+            userId = USER_ID,
+            refreshTokenHash = SECOND_SESSION_HASH,
+            tokenFamilyId = SECOND_FAMILY_ID,
+            clientId = "mykytadu-ios",
+            csrfTokenHash = null,
+            createdAt = NOW,
+            expiresAt = NOW.plusSeconds(3_600),
+        )
+        sessions.create(first)
+        sessions.create(second)
+
+        val affected = sessions.revokeAllForUser(USER_ID, ROTATED_AT)
+
+        assertThat(affected).isEqualTo(2)
+        assertThat(sessions.findById(PREDECESSOR_ID)?.revokeReason).isEqualTo(Session.LOGOUT_ALL_REASON)
+        assertThat(sessions.findById(SECOND_SESSION_ID)?.revokeReason).isEqualTo(Session.LOGOUT_ALL_REASON)
+    }
+
+    @Test
+    fun `logout revokes renewable generations only in the presented family`() {
+        val first = initialSession()
+        val otherFamily = Session.initial(
+            id = SECOND_SESSION_ID,
+            userId = USER_ID,
+            refreshTokenHash = SECOND_SESSION_HASH,
+            tokenFamilyId = SECOND_FAMILY_ID,
+            clientId = "mykytadu-ios",
+            csrfTokenHash = null,
+            createdAt = NOW,
+            expiresAt = NOW.plusSeconds(3_600),
+        )
+        sessions.create(first)
+        sessions.create(otherFamily)
+
+        val affected = sessions.revokeFamilyForLogout(FAMILY_ID, ROTATED_AT)
+
+        assertThat(affected).isEqualTo(1)
+        assertThat(sessions.findById(PREDECESSOR_ID)?.revokeReason).isEqualTo(Session.LOGOUT_REASON)
+        assertThat(sessions.findById(SECOND_SESSION_ID)?.revokedAt).isNull()
+    }
+
+    private fun initialSession(): Session = Session.initial(
+        id = PREDECESSOR_ID,
+        userId = USER_ID,
+        refreshTokenHash = PREDECESSOR_HASH,
+        tokenFamilyId = FAMILY_ID,
+        clientId = "mykytadu-android",
+        csrfTokenHash = null,
+        createdAt = NOW,
+        expiresAt = NOW.plusSeconds(3_600),
+    )
+
+    private fun replay() = SessionRotationReplay(
+        successorSessionId = SUCCESSOR_ID,
+        idempotencyKeyHash = IDEMPOTENCY_HASH,
+        derivationKeyId = "refresh-key-1",
+        replayUntil = ROTATED_AT.plusSeconds(120),
+        accessTokenId = UUID.fromString("019937b6-3600-7001-8000-000000000014"),
+        accessIssuedAt = ROTATED_AT,
+        accessExpiresAt = ROTATED_AT.plusSeconds(600),
+    )
+
+    companion object {
+        private val NOW = Instant.parse("2026-09-27T12:00:00Z")
+        private val ROTATED_AT = NOW.plusSeconds(60)
+        private val USER_ID = UserId.from(UUID.fromString("019937b6-3600-7001-8000-000000000001"))
+        private val PREDECESSOR_ID = SessionId.from(UUID.fromString("019937b6-3600-7001-8000-000000000010"))
+        private val SUCCESSOR_ID = SessionId.from(UUID.fromString("019937b6-3600-7001-8000-000000000011"))
+        private val FAMILY_ID = TokenFamilyId.from(UUID.fromString("019937b6-3600-7001-8000-000000000012"))
+        private val SECOND_SESSION_ID = SessionId.from(UUID.fromString("019937b6-3600-7001-8000-000000000020"))
+        private val SECOND_FAMILY_ID = TokenFamilyId.from(UUID.fromString("019937b6-3600-7001-8000-000000000022"))
+        private val PREDECESSOR_HASH = TokenHash.sha256("a".repeat(64))
+        private val SUCCESSOR_HASH = TokenHash.sha256("b".repeat(64))
+        private val IDEMPOTENCY_HASH = TokenHash.sha256("c".repeat(64))
+        private val SECOND_SESSION_HASH = TokenHash.sha256("e".repeat(64))
+
+        @Container
+        @ServiceConnection
+        @JvmStatic
+        val postgres: PostgreSQLContainer = PostgreSqlIntegrationFixture.newContainer()
+    }
+}

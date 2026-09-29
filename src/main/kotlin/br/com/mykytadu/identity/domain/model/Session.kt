@@ -14,6 +14,8 @@ class Session private constructor(
     val revokedAt: Instant?,
     val revokeReason: String?,
     val createdAt: Instant,
+    val parentSessionId: SessionId?,
+    val rotationReplay: SessionRotationReplay?,
 ) {
 
     init {
@@ -27,6 +29,80 @@ class Session private constructor(
         require(revokedAt == null || !revokedAt.isBefore(createdAt)) {
             "Session revocation time must not precede creation time"
         }
+        require(parentSessionId != id) { "Session cannot be its own parent" }
+        require((revokeReason == ROTATED_REASON) == (rotationReplay != null)) {
+            "Only a rotated session must contain replay metadata"
+        }
+        rotationReplay?.let { replay ->
+            require(replay.successorSessionId != id) { "Session cannot rotate to itself" }
+            requireNotNull(revokedAt) { "Rotated session must have a revocation time" }
+            require(replay.replayUntil.isAfter(revokedAt)) { "Replay window must end after rotation" }
+            require(replay.accessExpiresAt.isAfter(replay.accessIssuedAt)) {
+                "Replay access token expiry must be after issuance"
+            }
+        }
+    }
+
+    fun markRotated(rotatedAt: Instant, replay: SessionRotationReplay): Session {
+        check(isActiveAt(rotatedAt)) { "Only an active session can rotate" }
+        return Session(
+            id,
+            userId,
+            refreshTokenHash,
+            tokenFamilyId,
+            clientId,
+            csrfTokenHash,
+            expiresAt,
+            rotatedAt,
+            ROTATED_REASON,
+            createdAt,
+            parentSessionId,
+            replay,
+        )
+    }
+
+    fun revoke(at: Instant, reason: String): Session {
+        require(reason.isNotBlank() && reason != ROTATED_REASON) { "A non-rotation reason is required" }
+        check(isActiveAt(at)) { "Only an active session can be revoked" }
+        return Session(
+            id,
+            userId,
+            refreshTokenHash,
+            tokenFamilyId,
+            clientId,
+            csrfTokenHash,
+            expiresAt,
+            at,
+            reason,
+            createdAt,
+            parentSessionId,
+            null,
+        )
+    }
+
+    fun isActiveAt(instant: Instant): Boolean =
+        revokedAt == null && !instant.isBefore(createdAt) && instant.isBefore(expiresAt)
+
+    fun isReplayAllowed(idempotencyKeyHash: TokenHash, instant: Instant): Boolean = rotationReplay?.let { replay ->
+        replay.idempotencyKeyHash == idempotencyKeyHash && instant.isBefore(replay.replayUntil)
+    } ?: false
+
+    fun reissueCsrf(csrfTokenHash: TokenHash): Session {
+        check(clientId == WEB_CLIENT_ID && revokedAt == null) { "Only an active Web session can reissue CSRF" }
+        return Session(
+            id,
+            userId,
+            refreshTokenHash,
+            tokenFamilyId,
+            clientId,
+            csrfTokenHash,
+            expiresAt,
+            revokedAt,
+            revokeReason,
+            createdAt,
+            parentSessionId,
+            rotationReplay,
+        )
     }
 
     companion object {
@@ -52,8 +128,86 @@ class Session private constructor(
             null,
             null,
             createdAt,
+            null,
+            null,
         )
+
+        fun successor(
+            id: SessionId,
+            predecessorId: SessionId,
+            userId: UserId,
+            refreshTokenHash: TokenHash,
+            tokenFamilyId: TokenFamilyId,
+            clientId: String?,
+            csrfTokenHash: TokenHash?,
+            createdAt: Instant,
+            expiresAt: Instant,
+        ): Session = Session(
+            id,
+            userId,
+            refreshTokenHash,
+            tokenFamilyId,
+            clientId,
+            csrfTokenHash,
+            expiresAt,
+            null,
+            null,
+            createdAt,
+            predecessorId,
+            null,
+        )
+
+        fun restore(
+            id: SessionId,
+            userId: UserId,
+            refreshTokenHash: TokenHash,
+            tokenFamilyId: TokenFamilyId,
+            clientId: String?,
+            csrfTokenHash: TokenHash?,
+            expiresAt: Instant,
+            revokedAt: Instant?,
+            revokeReason: String?,
+            createdAt: Instant,
+            parentSessionId: SessionId?,
+            rotationReplay: SessionRotationReplay?,
+        ): Session = Session(
+            id,
+            userId,
+            refreshTokenHash,
+            tokenFamilyId,
+            clientId,
+            csrfTokenHash,
+            expiresAt,
+            revokedAt,
+            revokeReason,
+            createdAt,
+            parentSessionId,
+            rotationReplay,
+        )
+
+        const val ROTATED_REASON = "rotated"
+        const val REUSE_DETECTED_REASON = "reuse_detected"
+        const val LOGOUT_REASON = "logout"
+        const val LOGOUT_ALL_REASON = "logout_all"
+        const val ACCOUNT_INACTIVE_REASON = "account_inactive"
     }
+}
+
+data class SessionRotationReplay(
+    val successorSessionId: SessionId,
+    val idempotencyKeyHash: TokenHash,
+    val derivationKeyId: String,
+    val replayUntil: Instant,
+    val accessTokenId: UUID,
+    val accessIssuedAt: Instant,
+    val accessExpiresAt: Instant,
+) {
+    init {
+        require(derivationKeyId.isNotBlank()) { "Refresh derivation key id must not be blank" }
+        require(derivationKeyId.length <= 100) { "Refresh derivation key id must not exceed 100 characters" }
+    }
+
+    override fun toString(): String = "SessionRotationReplay([REDACTED])"
 }
 
 @JvmInline

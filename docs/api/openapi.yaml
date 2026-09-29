@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: MykytaDu API
-  version: 0.3.1
+  version: 0.4.3
   description: |
     Contrato HTTP inicial do MykytaDu API.
 
@@ -229,9 +229,16 @@ paths:
         Rotaciona atomicamente o refresh token. No Web, o navegador envia o
         cookie automaticamente e também `X-CSRF-Token` e `Origin`; o corpo é
         omitido. Nos clientes nativos, o corpo contém o refresh token opaco
-        lido do cofre seguro. A resposta Web não contém `refreshToken`.
+        lido do cofre seguro. A alternativa sem `refreshCookie` na seção de
+        segurança representa exclusivamente esse corpo nativo. A resposta Web
+        não contém `refreshToken`. `Idempotency-Key` é opcional para manter a
+        compatibilidade de `/api/v1`; sem ela, a rotação funciona, mas uma
+        repetição do refresh consumido não pode ser reconhecida como retry e
+        revoga a família. Clientes devem reutilizar a mesma chave ao repetir
+        uma tentativa após resposta de rede desconhecida.
       security:
         - refreshCookie: []
+        - {}
       parameters:
         - $ref: '#/components/parameters/CsrfToken'
         - $ref: '#/components/parameters/Origin'
@@ -263,7 +270,7 @@ paths:
         '400':
           $ref: '#/components/responses/ValidationProblem'
         '401':
-          description: Sessão inválida, expirada ou refresh token reutilizado
+          description: Sessão inválida, expirada, pertencente a conta inativa ou refresh token reutilizado
           content:
             application/problem+json:
               schema:
@@ -287,8 +294,12 @@ paths:
         Revoga a sessão atual. O Web usa o cookie de refresh, o access token
         Bearer e o synchronizer token; clientes nativos enviam o refresh token
         opaco no corpo e o access token como Bearer. A operação é idempotente
-        para uma sessão já encerrada.
+        para uma sessão já encerrada e só revoga a família pertencente ao
+        principal autenticado. Respostas para sessão ausente ou pertencente a
+        outra conta também são uniformes.
       security:
+        - bearerAuth: []
+          refreshCookie: []
         - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/CsrfToken'
@@ -320,8 +331,13 @@ paths:
       tags: [Identity]
       operationId: logoutAll
       summary: Encerrar todas as sessões
-      description: Revoga todas as sessões da conta autenticada.
+      description: |
+        Revoga todas as sessões renováveis da conta autenticada. Clientes Web
+        enviam o cookie de refresh corrente, `Origin` e synchronizer token
+        junto do access token Bearer; clientes nativos usam somente Bearer.
       security:
+        - bearerAuth: []
+          refreshCookie: []
         - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/CsrfToken'
@@ -552,7 +568,7 @@ components:
         type: string
         minLength: 1
         maxLength: 512
-      description: Obrigatório para o fluxo Web em refresh e logout; mantido somente em memória.
+      description: Obrigatório para o fluxo Web em refresh, logout e logout-all; mantido somente em memória.
     Origin:
       name: Origin
       in: header
@@ -569,7 +585,7 @@ components:
         type: string
         minLength: 1
         maxLength: 128
-      description: Chave opcional para repetição segura após resposta de rede desconhecida.
+      description: Chave opcional para repetição segura após resposta de rede desconhecida; quando usada, mantenha o mesmo valor em retries da mesma rotação.
 
   headers:
     RefreshCookie:

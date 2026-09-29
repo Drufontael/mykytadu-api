@@ -66,6 +66,17 @@ class IdentityMigrationIntegrationTests(@Autowired private val jdbcTemplate: Jdb
                 "type",
                 "user_id",
             )
+        assertSessionColumns()
+        assertThat(PostgreSqlIntegrationFixture.foreignKeyTables(jdbcTemplate, "identity"))
+            .containsExactlyInAnyOrder(
+                "action_tokens",
+                "password_credentials",
+                "roles",
+                "sessions",
+            )
+    }
+
+    private fun assertSessionColumns() {
         assertThat(PostgreSqlIntegrationFixture.columns(jdbcTemplate, "identity", "sessions"))
             .containsExactlyInAnyOrder(
                 "client_id",
@@ -74,17 +85,18 @@ class IdentityMigrationIntegrationTests(@Autowired private val jdbcTemplate: Jdb
                 "expires_at",
                 "id",
                 "refresh_token_hash",
+                "refresh_derivation_kid",
+                "parent_session_id",
+                "replay_access_expires_at",
+                "replay_access_issued_at",
+                "replay_access_token_id",
+                "replay_until",
                 "revoke_reason",
                 "revoked_at",
+                "rotated_to_session_id",
+                "rotation_idempotency_key_hash",
                 "token_family_id",
                 "user_id",
-            )
-        assertThat(PostgreSqlIntegrationFixture.foreignKeyTables(jdbcTemplate, "identity"))
-            .containsExactlyInAnyOrder(
-                "action_tokens",
-                "password_credentials",
-                "roles",
-                "sessions",
             )
     }
 

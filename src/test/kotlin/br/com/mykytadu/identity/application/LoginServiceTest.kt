@@ -12,10 +12,17 @@ import br.com.mykytadu.identity.application.port.out.LoginOriginPolicy
 import br.com.mykytadu.identity.application.port.out.SessionIdGenerator
 import br.com.mykytadu.identity.application.port.out.SessionStore
 import br.com.mykytadu.identity.application.port.out.SessionTokenCryptography
+import br.com.mykytadu.identity.application.port.out.UserAccountRepository
+import br.com.mykytadu.identity.domain.model.Email
+import br.com.mykytadu.identity.domain.model.PasswordHash
 import br.com.mykytadu.identity.domain.model.Session
 import br.com.mykytadu.identity.domain.model.SessionId
 import br.com.mykytadu.identity.domain.model.TokenFamilyId
 import br.com.mykytadu.identity.domain.model.TokenHash
+import br.com.mykytadu.identity.domain.model.User
+import br.com.mykytadu.identity.domain.model.UserAccount
+import br.com.mykytadu.identity.domain.model.UserId
+import br.com.mykytadu.identity.domain.model.UserStatus
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.time.Clock
@@ -83,6 +90,21 @@ class LoginServiceTest {
         assertThat(store.session).isNull()
     }
 
+    @Test
+    fun `does not create a session if account becomes inactive after authentication`() {
+        listOf(UserStatus.BLOCKED, UserStatus.DELETED).forEach { status ->
+            val store = RecordingSessionStore()
+            val tokens = FixedSessionTokens()
+
+            val outcome = service(store = store, tokens = tokens, accounts = LoginAccountRepository(status))
+                .login(command())
+
+            assertThat(outcome).isEqualTo(LoginOutcome.InvalidCredentials)
+            assertThat(store.session).isNull()
+            assertThat(tokens.generated).isZero()
+        }
+    }
+
     private fun service(
         authenticationOutcome: AuthenticationOutcome = AuthenticationOutcome.Authenticated(
             PRINCIPAL,
@@ -90,8 +112,10 @@ class LoginServiceTest {
         ),
         store: RecordingSessionStore = RecordingSessionStore(),
         tokens: FixedSessionTokens = FixedSessionTokens(),
+        accounts: UserAccountRepository = LoginAccountRepository(),
     ) = LoginService(
         authentication = FixedAuthentication(authenticationOutcome),
+        accounts = accounts,
         sessions = store,
         idGenerator = FixedSessionIds,
         tokenCryptography = tokens,
@@ -116,6 +140,59 @@ class LoginServiceTest {
         override fun create(session: Session) {
             this.session = session
         }
+
+        override fun update(session: Session) {
+            this.session = session
+        }
+
+        override fun findById(sessionId: SessionId): Session? = session?.takeIf { it.id == sessionId }
+
+        override fun findByRefreshTokenHash(refreshTokenHash: TokenHash): Session? =
+            session?.takeIf { it.refreshTokenHash == refreshTokenHash }
+
+        override fun findFamilyForUpdate(tokenFamilyId: TokenFamilyId): List<Session> =
+            listOfNotNull(session?.takeIf { it.tokenFamilyId == tokenFamilyId })
+
+        override fun revokeRenewableFamily(tokenFamilyId: TokenFamilyId, revokedAt: Instant): Int = 0
+
+        override fun revokeFamilyForLogout(tokenFamilyId: TokenFamilyId, revokedAt: Instant): Int = 0
+
+        override fun revokeAllForUser(userId: br.com.mykytadu.identity.domain.model.UserId, revokedAt: Instant) = 0
+
+        override fun revokeAllForInactiveUser(userId: UserId, revokedAt: Instant) = 0
+    }
+
+    private class LoginAccountRepository(status: UserStatus = UserStatus.ACTIVE) : UserAccountRepository {
+        private val account = UserAccount.pending(
+            UserId.from(PRINCIPAL.id),
+            Email.from("person@example.com"),
+            "Person",
+            PasswordHash.from("hash"),
+            NOW.minusSeconds(60),
+        ).verifyEmail(NOW).let { active ->
+            if (status == UserStatus.ACTIVE) {
+                active
+            } else {
+                UserAccount.restore(
+                    User.restore(
+                        id = active.user.id,
+                        email = active.user.email,
+                        displayName = active.user.displayName,
+                        status = status,
+                        emailVerifiedAt = active.user.emailVerifiedAt,
+                        createdAt = active.user.createdAt,
+                        updatedAt = NOW,
+                    ),
+                    active.credential,
+                    active.roles,
+                )
+            }
+        }
+
+        override fun save(account: UserAccount) = account
+        override fun findByEmail(email: Email) = null
+        override fun findById(userId: UserId) = account.takeIf { it.user.id == userId }
+        override fun findByIdForUpdate(userId: UserId) = findById(userId)
     }
 
     private class FixedSessionTokens : SessionTokenCryptography {

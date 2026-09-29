@@ -8,6 +8,7 @@ import org.springframework.http.ProblemDetail
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.web.bind.MethodArgumentNotValidException
+import org.springframework.web.bind.MissingRequestHeaderException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 
@@ -48,6 +49,14 @@ class ApiExceptionHandler(private val problemFactory: ApiProblemFactory) {
         code = ProblemCode.REQUEST_VALIDATION_FAILED,
         request = request,
         detail = "The request body is missing or malformed.",
+    )
+
+    @ExceptionHandler(MissingRequestHeaderException::class)
+    fun handleMissingHeader(request: HttpServletRequest): ProblemDetail = problemFactory.create(
+        status = HttpStatus.BAD_REQUEST,
+        code = ProblemCode.REQUEST_VALIDATION_FAILED,
+        request = request,
+        detail = "A required request header is missing.",
     )
 
     @ExceptionHandler(Exception::class)

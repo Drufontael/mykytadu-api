@@ -19,6 +19,7 @@ class SecurityConfiguration {
         accessDeniedHandler: ProblemAccessDeniedHandler,
     ): SecurityFilterChain {
         http
+            .cors { }
             .csrf { it.disable() }
             .formLogin { it.disable() }
             .httpBasic { it.disable() }
@@ -40,8 +41,13 @@ class SecurityConfiguration {
                     "/actuator/health/readiness",
                 ).permitAll()
                 it.requestMatchers(
+                    HttpMethod.GET,
+                    "/api/v1/auth/csrf",
+                ).permitAll()
+                it.requestMatchers(
                     HttpMethod.POST,
                     "/api/v1/auth/login",
+                    "/api/v1/auth/refresh",
                     "/api/v1/auth/register",
                     "/api/v1/auth/verify-email",
                     "/api/v1/auth/verify-email/resend",
