@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: MykytaDu API
-  version: 0.4.2
+  version: 0.4.3
   description: |
     Contrato HTTP inicial do MykytaDu API.
 
@@ -270,7 +270,7 @@ paths:
         '400':
           $ref: '#/components/responses/ValidationProblem'
         '401':
-          description: Sessão inválida, expirada ou refresh token reutilizado
+          description: Sessão inválida, expirada, pertencente a conta inativa ou refresh token reutilizado
           content:
             application/problem+json:
               schema:

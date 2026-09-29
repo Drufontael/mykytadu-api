@@ -251,6 +251,10 @@ classDiagram
   predecessor consumido não pode ser repetido de modo idempotente;
 - reutilização de token consumido revoga toda a família;
 - usuário bloqueado ou excluído não renova sessão;
+- refresh e reemissão de CSRF verificam o estado da conta sob lock do usuário;
+  ao detectar conta inativa, revogam as sessões ainda renováveis da conta;
+  a operação futura que altera o estado deve revogar as sessões na mesma
+  transação, sem esperar uma tentativa de refresh;
 - access token não é persistido.
 
 ## 7. Modelo de domínio — Translation

@@ -15,9 +15,12 @@ import br.com.mykytadu.identity.application.port.out.UserAccountRepository
 import br.com.mykytadu.identity.domain.model.Email
 import br.com.mykytadu.identity.domain.model.UserAccount
 import br.com.mykytadu.identity.domain.model.UserId
+import br.com.mykytadu.identity.domain.model.UserStatus
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection
@@ -141,6 +144,45 @@ class LoginIntegrationTests(
                 String::class.java,
             ),
         ).isEqualTo("reuse_detected")
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = UserStatus::class, names = ["BLOCKED", "DELETED"])
+    fun `inactive account cannot refresh and all renewable families are revoked`(status: UserStatus) {
+        val first = (login.login(command(AuthenticationClient.ANDROID)) as LoginOutcome.Created).session
+        val second = (login.login(command(AuthenticationClient.IOS)) as LoginOutcome.Created).session
+        jdbcTemplate.update("UPDATE identity.users SET status = ? WHERE id = ?", status.persistenceValue, USER_ID.value)
+
+        assertThat(
+            sessions.refresh(RefreshSessionCommand(requireNotNull(first.refreshToken), "first", null, null, false)),
+        )
+            .isEqualTo(RefreshOutcome.SessionInvalid)
+        assertThat(
+            sessions.refresh(RefreshSessionCommand(requireNotNull(second.refreshToken), "second", null, null, false)),
+        )
+            .isEqualTo(RefreshOutcome.SessionInvalid)
+        assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM identity.sessions WHERE revoke_reason = 'account_inactive'",
+                Int::class.java,
+            ),
+        ).isEqualTo(2)
+    }
+
+    @Test
+    fun `blocked account cannot replay a rotated refresh`() {
+        val initial = (login.login(command(AuthenticationClient.ANDROID)) as LoginOutcome.Created).session
+        val command = RefreshSessionCommand(requireNotNull(initial.refreshToken), "same-key", null, null, false)
+        sessions.refresh(command) as RefreshOutcome.Refreshed
+        jdbcTemplate.update("UPDATE identity.users SET status = 'blocked' WHERE id = ?", USER_ID.value)
+
+        assertThat(sessions.refresh(command)).isEqualTo(RefreshOutcome.SessionInvalid)
+        assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT revoke_reason FROM identity.sessions WHERE parent_session_id IS NOT NULL",
+                String::class.java,
+            ),
+        ).isEqualTo("account_inactive")
     }
 
     @Test

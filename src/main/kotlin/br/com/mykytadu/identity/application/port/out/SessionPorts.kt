@@ -16,6 +16,7 @@ interface SessionStore {
     fun revokeRenewableFamily(tokenFamilyId: TokenFamilyId, revokedAt: java.time.Instant): Int
     fun revokeFamilyForLogout(tokenFamilyId: TokenFamilyId, revokedAt: java.time.Instant): Int
     fun revokeAllForUser(userId: UserId, revokedAt: java.time.Instant): Int
+    fun revokeAllForInactiveUser(userId: UserId, revokedAt: java.time.Instant): Int
 }
 
 interface SessionIdGenerator {

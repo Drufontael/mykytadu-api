@@ -54,6 +54,15 @@ internal interface SpringDataSessionRepository : JpaRepository<SessionEntity, UU
             "and session.expiresAt > :revokedAt",
     )
     fun revokeAllForUser(@Param("userId") userId: UUID, @Param("revokedAt") revokedAt: Instant): Int
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        "update SessionEntity session set session.revokedAt = :revokedAt, " +
+            "session.revokeReason = 'account_inactive' " +
+            "where session.userId = :userId and session.revokedAt is null " +
+            "and session.expiresAt > :revokedAt",
+    )
+    fun revokeAllForInactiveUser(@Param("userId") userId: UUID, @Param("revokedAt") revokedAt: Instant): Int
 }
 
 @Repository
@@ -93,6 +102,10 @@ internal class JpaSessionStore(private val sessions: SpringDataSessionRepository
     @Transactional
     override fun revokeAllForUser(userId: UserId, revokedAt: Instant): Int =
         sessions.revokeAllForUser(userId.value, revokedAt)
+
+    @Transactional
+    override fun revokeAllForInactiveUser(userId: UserId, revokedAt: Instant): Int =
+        sessions.revokeAllForInactiveUser(userId.value, revokedAt)
 
     private fun Session.toEntity(): SessionEntity = SessionEntity(
         id = id.value,

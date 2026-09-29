@@ -15,6 +15,7 @@ import br.com.mykytadu.identity.application.port.out.SessionTokenCryptography
 import br.com.mykytadu.identity.application.port.out.UserAccountRepository
 import br.com.mykytadu.identity.domain.model.Session
 import br.com.mykytadu.identity.domain.model.UserId
+import br.com.mykytadu.identity.domain.model.UserStatus
 import org.springframework.context.annotation.Profile
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -51,12 +52,17 @@ internal class LoginService(
     private fun createSession(
         authenticated: AuthenticationOutcome.Authenticated,
         command: LoginCommand,
-    ): LoginOutcome {
-        if (authenticated.client.web && !originPolicy.isAllowed(command.origin)) {
-            return LoginOutcome.InvalidOrigin
-        }
+    ): LoginOutcome = if (authenticated.client.web && !originPolicy.isAllowed(command.origin)) {
+        LoginOutcome.InvalidOrigin
+    } else {
+        createSessionForAllowedOrigin(authenticated)
+    }
+
+    private fun createSessionForAllowedOrigin(authenticated: AuthenticationOutcome.Authenticated): LoginOutcome {
         val now = clock.instant()
-        accounts.findByIdForUpdate(UserId.from(authenticated.principal.id))
+        if (accounts.findByIdForUpdate(UserId.from(authenticated.principal.id))?.user?.status != UserStatus.ACTIVE) {
+            return LoginOutcome.InvalidCredentials
+        }
         val refreshToken = tokenCryptography.generateToken()
         val csrfToken = tokenCryptography.generateToken().takeIf { authenticated.client.web }
         val expiresAt = now.plus(properties.refreshTokenTtl)

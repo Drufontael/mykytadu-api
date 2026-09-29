@@ -125,6 +125,27 @@ class SessionServiceTest {
     }
 
     @Test
+    fun `inactive account cannot refresh and revokes its renewable sessions`() {
+        listOf(UserStatus.BLOCKED, UserStatus.DELETED).forEach { status ->
+            val store = RecordingSessionStore(initialSession(AuthenticationClient.ANDROID, null))
+            val service = service(store, account = account(status))
+
+            assertThat(service.refresh(refreshCommand(false, null, null))).isEqualTo(RefreshOutcome.SessionInvalid)
+            assertThat(store.created).isEmpty()
+            assertThat(store.sessions[PREDECESSOR_ID]?.revokeReason).isEqualTo(Session.ACCOUNT_INACTIVE_REASON)
+        }
+    }
+
+    @Test
+    fun `inactive Web account cannot reissue csrf`() {
+        val store = RecordingSessionStore(initialSession(AuthenticationClient.WEB, HASHED_CSRF))
+        val service = service(store, account = account(UserStatus.BLOCKED))
+
+        assertThat(service.reissueCsrf(ReissueCsrfCommand(RAW_REFRESH))).isEqualTo(CsrfOutcome.SessionInvalid)
+        assertThat(store.sessions[PREDECESSOR_ID]?.revokeReason).isEqualTo(Session.ACCOUNT_INACTIVE_REASON)
+    }
+
+    @Test
     fun `logout is idempotent and cannot revoke another account session`() {
         val store = RecordingSessionStore(initialSession(AuthenticationClient.ANDROID, null))
         val service = logoutService(store)
@@ -146,23 +167,26 @@ class SessionServiceTest {
         assertThat(store.sessions[PREDECESSOR_ID]?.revokeReason).isEqualTo(Session.LOGOUT_ALL_REASON)
     }
 
-    private fun service(store: RecordingSessionStore, telemetry: RecordingTelemetry = RecordingTelemetry()) =
-        SessionService(
-            sessions = store,
-            accounts = FixedAccountRepository(account()),
-            telemetry = telemetry,
-            ids = FixedIds(),
-            tokens = FixedTokens(),
-            refreshDeriver = FixedRefreshDeriver(),
-            accessTokens = FixedAccessTokens(),
-            originPolicy = { it == ALLOWED_ORIGIN },
-            clock = Clock.fixed(NOW, ZoneOffset.UTC),
-            properties = SessionApplicationProperties(
-                accessTokenTtl = Duration.ofMinutes(10),
-                refreshTokenTtl = Duration.ofDays(30),
-                replayWindow = Duration.ofMinutes(2),
-            ),
-        )
+    private fun service(
+        store: RecordingSessionStore,
+        telemetry: RecordingTelemetry = RecordingTelemetry(),
+        account: UserAccount = account(),
+    ) = SessionService(
+        sessions = store,
+        accounts = FixedAccountRepository(account),
+        telemetry = telemetry,
+        ids = FixedIds(),
+        tokens = FixedTokens(),
+        refreshDeriver = FixedRefreshDeriver(),
+        accessTokens = FixedAccessTokens(),
+        originPolicy = { it == ALLOWED_ORIGIN },
+        clock = Clock.fixed(NOW, ZoneOffset.UTC),
+        properties = SessionApplicationProperties(
+            accessTokenTtl = Duration.ofMinutes(10),
+            refreshTokenTtl = Duration.ofDays(30),
+            replayWindow = Duration.ofMinutes(2),
+        ),
+    )
 
     private fun logoutService(store: RecordingSessionStore) = SessionLogoutService(
         sessions = store,
@@ -199,12 +223,12 @@ class SessionServiceTest {
         expiresAt = NOW.plusSeconds(3_600),
     )
 
-    private fun account(): UserAccount = UserAccount.restore(
+    private fun account(status: UserStatus = UserStatus.ACTIVE): UserAccount = UserAccount.restore(
         user = User.restore(
             id = USER_ID,
             email = Email.from("person@example.com"),
             displayName = "Person",
-            status = UserStatus.ACTIVE,
+            status = status,
             emailVerifiedAt = NOW.minusSeconds(120),
             createdAt = NOW.minusSeconds(180),
             updatedAt = NOW.minusSeconds(120),
@@ -251,6 +275,12 @@ class SessionServiceTest {
         override fun revokeAllForUser(userId: UserId, revokedAt: Instant): Int {
             val active = sessions.values.filter { it.userId == userId && it.isActiveAt(revokedAt) }
             active.forEach { sessions[it.id] = it.revoke(revokedAt, Session.LOGOUT_ALL_REASON) }
+            return active.size
+        }
+
+        override fun revokeAllForInactiveUser(userId: UserId, revokedAt: Instant): Int {
+            val active = sessions.values.filter { it.userId == userId && it.isActiveAt(revokedAt) }
+            active.forEach { sessions[it.id] = it.revoke(revokedAt, Session.ACCOUNT_INACTIVE_REASON) }
             return active.size
         }
     }

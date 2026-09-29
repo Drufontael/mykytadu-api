@@ -45,12 +45,18 @@ internal class SessionService(
     override fun reissueCsrf(command: ReissueCsrfCommand): CsrfOutcome {
         val now = clock.instant()
         val session = sessions.findSessionFamilyLocked(command.refreshToken, tokens, accounts)
-        return if (session == null || !session.isActiveAt(now) || session.clientId != Session.WEB_CLIENT_ID) {
-            CsrfOutcome.SessionInvalid
-        } else {
-            val csrfToken = tokens.generateToken()
-            sessions.update(session.reissueCsrf(tokens.hash(csrfToken)))
-            CsrfOutcome.Issued(csrfToken)
+        return when {
+            session == null -> CsrfOutcome.SessionInvalid
+
+            !sessions.accountIsActiveUnderLock(session, accounts, now) -> CsrfOutcome.SessionInvalid
+
+            !session.isActiveAt(now) || session.clientId != Session.WEB_CLIENT_ID -> CsrfOutcome.SessionInvalid
+
+            else -> {
+                val csrfToken = tokens.generateToken()
+                sessions.update(session.reissueCsrf(tokens.hash(csrfToken)))
+                CsrfOutcome.Issued(csrfToken)
+            }
         }
     }
 
@@ -58,7 +64,8 @@ internal class SessionService(
     override fun refresh(command: RefreshSessionCommand): RefreshOutcome {
         val now = clock.instant()
         val predecessor = sessions.findSessionFamilyLocked(command.refreshToken, tokens, accounts)
-        return predecessor?.let { refreshKnown(it, command, now) } ?: RefreshOutcome.SessionInvalid
+        return predecessor?.takeIf { sessions.accountIsActiveUnderLock(it, accounts, now) }
+            ?.let { refreshKnown(it, command, now) } ?: RefreshOutcome.SessionInvalid
     }
 
     private fun refreshKnown(
