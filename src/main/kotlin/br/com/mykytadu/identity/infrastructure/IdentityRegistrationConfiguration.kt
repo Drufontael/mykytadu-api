@@ -79,6 +79,7 @@ internal class IdentityRegistrationConfiguration {
 data class IdentityRegistrationConfigurationProperties(
     val registration: RegistrationPolicyProperties = RegistrationPolicyProperties(),
     val authentication: AuthenticationPolicyProperties = AuthenticationPolicyProperties(),
+    val recovery: PasswordRecoveryPolicyProperties = PasswordRecoveryPolicyProperties(),
     val refreshDerivation: RefreshDerivationProperties = RefreshDerivationProperties(),
     val jwt: JwtConfigurationProperties = JwtConfigurationProperties(),
     val email: EmailProperties = EmailProperties(),
@@ -92,6 +93,13 @@ data class RegistrationPolicyProperties(
     val resendLimit: Int = 5,
     val resendWindow: Duration = Duration.ofHours(1),
     val resendCooldown: Duration = Duration.ofMinutes(1),
+)
+
+data class PasswordRecoveryPolicyProperties(
+    val resetTokenTtl: Duration = Duration.ofHours(2),
+    val forgotLimit: Int = 5,
+    val forgotWindow: Duration = Duration.ofHours(1),
+    val forgotCooldown: Duration = Duration.ofMinutes(1),
 )
 
 data class AuthenticationPolicyProperties(
