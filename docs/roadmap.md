@@ -375,6 +375,9 @@ flowchart LR
 
 Esses itens devem entrar por nova decisão de produto e planejamento, não como expansão informal de sprint.
 
+> **Nota de alinhamento com o `mykytadu-app`:**
+> A biblioteca pessoal do aplicativo opera sob arquitetura *local-first* (Sprints 8 e 9 do KMP), e o catálogo de animes é provido diretamente pela AniList no cliente, sem catálogo próprio nesta API. O escopo atual do backend (Fases B0 a B4) atende estritamente à **Sprint 12 do app** (Identity e autenticação) e à tradução controlada. A sincronização em nuvem da biblioteca e progresso do usuário pertence à **Sprint 13 do app**, momento em que uma nova fase de roadmap da API definirá o respectivo ADR, schema PostgreSQL e contrato OpenAPI.
+
 ## 9. Métricas de acompanhamento
 
 - lead time entre mudança OpenAPI e fixture/mock disponível;
