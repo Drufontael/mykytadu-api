@@ -37,6 +37,18 @@ class UserAccount private constructor(val user: User, val credential: PasswordCr
         )
     }
 
+    fun block(now: Instant): UserAccount = UserAccount(
+        user = user.block(now),
+        credential = credential,
+        roles = roles,
+    )
+
+    fun delete(now: Instant): UserAccount = UserAccount(
+        user = user.delete(now),
+        credential = credential,
+        roles = roles,
+    )
+
     companion object {
 
         fun pending(

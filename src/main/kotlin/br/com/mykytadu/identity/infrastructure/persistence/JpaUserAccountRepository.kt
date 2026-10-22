@@ -12,7 +12,19 @@ import org.springframework.stereotype.Repository
 internal class JpaUserAccountRepository(private val delegate: SpringDataUserAccountRepository) :
     UserAccountRepository {
 
-    override fun save(account: UserAccount): UserAccount = delegate.save(account.toEntity()).toDomain()
+    override fun save(account: UserAccount): UserAccount {
+        val existing = delegate.findById(account.user.id.value).orElse(null)
+        val entity = if (existing != null) {
+            UserAccountPersistenceMapper.updateProfile(existing, account)
+            UserAccountPersistenceMapper.updateCredential(existing, account)
+            existing.roles.clear()
+            existing.roles.addAll(account.roles.map { it.role.name })
+            delegate.save(existing)
+        } else {
+            delegate.save(account.toEntity())
+        }
+        return entity.toDomain()
+    }
 
     override fun findByEmail(email: Email): UserAccount? =
         delegate.findByProfileNormalizedEmail(email.normalized)?.toDomain()

@@ -308,6 +308,66 @@ class UserAccountTest {
             .hasMessage("Only an active user can update profile")
     }
 
+    @Test
+    fun `blocks an account and updates time`() {
+        val createdAt = Instant.parse("2026-09-18T12:00:00Z")
+        val blockAt = Instant.parse("2026-09-18T14:00:00Z")
+        val account = UserAccount.pending(
+            USER_ID,
+            Email.from("person@example.com"),
+            "Person",
+            PASSWORD_HASH,
+            createdAt,
+        ).verifyEmail(createdAt.plusSeconds(60))
+
+        val blocked = account.block(blockAt)
+        assertThat(blocked.user.status).isEqualTo(UserStatus.BLOCKED)
+        assertThat(blocked.user.updatedAt).isEqualTo(blockAt)
+    }
+
+    @Test
+    fun `deletes an account and updates time`() {
+        val createdAt = Instant.parse("2026-09-18T12:00:00Z")
+        val deleteAt = Instant.parse("2026-09-18T14:00:00Z")
+        val account = UserAccount.pending(
+            USER_ID,
+            Email.from("person@example.com"),
+            "Person",
+            PASSWORD_HASH,
+            createdAt,
+        ).verifyEmail(createdAt.plusSeconds(60))
+
+        val deleted = account.delete(deleteAt)
+        assertThat(deleted.user.status).isEqualTo(UserStatus.DELETED)
+        assertThat(deleted.user.updatedAt).isEqualTo(deleteAt)
+    }
+
+    @Test
+    fun `does not block a deleted account or move time backwards`() {
+        val createdAt = Instant.parse("2026-09-18T12:00:00Z")
+        val deleteAt = Instant.parse("2026-09-18T13:00:00Z")
+        val account = UserAccount.pending(
+            USER_ID,
+            Email.from("person@example.com"),
+            "Person",
+            PASSWORD_HASH,
+            createdAt,
+        ).verifyEmail(createdAt.plusSeconds(60))
+        val deleted = account.delete(deleteAt)
+
+        assertThatThrownBy { deleted.block(deleteAt.plusSeconds(60)) }
+            .isInstanceOf(IllegalStateException::class.java)
+            .hasMessage("A deleted user cannot be blocked")
+
+        assertThatThrownBy { account.block(createdAt) }
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessage("Block time must not precede the last update")
+
+        assertThatThrownBy { account.delete(createdAt) }
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessage("Delete time must not precede the last update")
+    }
+
     companion object {
 
         private val USER_ID = UserId.from(UUID.fromString("01991f18-7d42-7b21-a2ef-1d8e6e14a901"))

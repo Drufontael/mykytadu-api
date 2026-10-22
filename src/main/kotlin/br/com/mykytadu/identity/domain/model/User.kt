@@ -52,6 +52,33 @@ class User private constructor(
         )
     }
 
+    fun block(blockedAt: Instant): User {
+        check(status != UserStatus.DELETED) { "A deleted user cannot be blocked" }
+        require(!blockedAt.isBefore(updatedAt)) { "Block time must not precede the last update" }
+        return User(
+            id = id,
+            email = email,
+            displayName = displayName,
+            status = UserStatus.BLOCKED,
+            emailVerifiedAt = emailVerifiedAt,
+            createdAt = createdAt,
+            updatedAt = blockedAt,
+        )
+    }
+
+    fun delete(deletedAt: Instant): User {
+        require(!deletedAt.isBefore(updatedAt)) { "Delete time must not precede the last update" }
+        return User(
+            id = id,
+            email = email,
+            displayName = displayName,
+            status = UserStatus.DELETED,
+            emailVerifiedAt = emailVerifiedAt,
+            createdAt = createdAt,
+            updatedAt = deletedAt,
+        )
+    }
+
     companion object {
 
         fun pending(id: UserId, email: Email, displayName: String?, now: Instant): User = User(
