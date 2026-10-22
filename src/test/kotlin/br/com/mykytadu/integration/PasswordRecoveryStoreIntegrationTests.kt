@@ -120,7 +120,7 @@ class PasswordRecoveryStoreIntegrationTests(
             id = userId(1),
             email = Email.from("pending@example.com"),
             displayName = "Pending",
-            passwordHash = PasswordHash.from("\$argon2id\$v=19\$m=16,t=2,p=1\$mock\$mock"),
+            passwordHash = PasswordHash.from($$"$argon2id$v=19$m=16,t=2,p=1$mock$mock"),
             now = NOW,
         )
         val verificationToken = ActionToken.emailVerification(
@@ -160,7 +160,7 @@ class PasswordRecoveryStoreIntegrationTests(
         insertActiveSession(account.user.id.value, sessionId, familyId)
 
         val resetAt = NOW.plusSeconds(600)
-        val newPasswordHash = PasswordHash.from("\$argon2id\$v=19\$m=16,t=2,p=1\$new-mock\$new-mock")
+        val newPasswordHash = PasswordHash.from($$"$argon2id$v=19$m=16,t=2,p=1$new-mock$new-mock")
         val resetOutcome = recoveryStore.resetPassword(resetTokenDraft.tokenHash, newPasswordHash, resetAt)
 
         assertThat(resetOutcome).isTrue()
@@ -176,7 +176,7 @@ class PasswordRecoveryStoreIntegrationTests(
 
         val secondAttempt = recoveryStore.resetPassword(
             resetTokenDraft.tokenHash,
-            PasswordHash.from("\$argon2id\$v=19\$m=16,t=2,p=1\$another\$another"),
+            PasswordHash.from($$"$argon2id$v=19$m=16,t=2,p=1$another$another"),
             resetAt.plusSeconds(60),
         )
         assertThat(secondAttempt).isFalse()
@@ -194,7 +194,7 @@ class PasswordRecoveryStoreIntegrationTests(
         recoveryStore.createPasswordResetToken(account.user.email, resetTokenDraft, NOW)
 
         val expiredAt = resetTokenDraft.expiresAt.plusSeconds(1)
-        val newPasswordHash = PasswordHash.from("\$argon2id\$v=19\$m=16,t=2,p=1\$new-mock\$new-mock")
+        val newPasswordHash = PasswordHash.from($$"$argon2id$v=19$m=16,t=2,p=1$new-mock$new-mock")
         val resetOutcome = recoveryStore.resetPassword(resetTokenDraft.tokenHash, newPasswordHash, expiredAt)
 
         assertThat(resetOutcome).isFalse()
@@ -251,7 +251,7 @@ class PasswordRecoveryStoreIntegrationTests(
         id = userId(sequence),
         email = Email.from(email),
         displayName = "Active User",
-        passwordHash = PasswordHash.from("\$argon2id\$v=19\$m=16,t=2,p=1\$mock\$mock"),
+        passwordHash = PasswordHash.from($$"$argon2id$v=19$m=16,t=2,p=1$mock$mock"),
         now = NOW,
     )
 

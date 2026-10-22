@@ -110,7 +110,7 @@ class AccountLifecycleIntegrationTests(
             id = userId,
             email = Email.from(email),
             displayName = "Lifecycle User",
-            passwordHash = PasswordHash.from("\$argon2id\$v=19\$m=16,t=2,p=1\$mock\$mock"),
+            passwordHash = PasswordHash.from($$"$argon2id$v=19$m=16,t=2,p=1$mock$mock"),
             now = baseTime,
         )
         val token = ActionToken.emailVerification(

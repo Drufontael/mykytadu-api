@@ -185,7 +185,7 @@ class RegistrationStoreIntegrationTests(
             id = userId,
             email = Email.from(email),
             displayName = "Person",
-            passwordHash = PasswordHash.from("${'$'}argon2id${'$'}v=19${'$'}fixture-$sequence"),
+            passwordHash = PasswordHash.from($$"$argon2id$v=19$fixture-$${sequence}"),
             now = NOW,
         )
         val token = ActionToken.emailVerification(

@@ -82,7 +82,7 @@ class PasswordRecoveryServiceTest {
                 email: Email,
                 token: PasswordResetTokenDraft,
                 invalidatedAt: Instant,
-            ): String? = throw IllegalStateException("DB unavailable")
+            ): Nothing = throw IllegalStateException("DB unavailable")
 
             override fun resetPassword(tokenHash: TokenHash, passwordHash: PasswordHash, now: Instant): Boolean = false
         }
@@ -214,7 +214,7 @@ class PasswordRecoveryServiceTest {
 
     private class FakePasswordHasher : PasswordHasher {
         override fun hash(password: CharSequence): PasswordHash =
-            PasswordHash.from("\$argon2id\$v=19\$m=65536,t=3,p=1\$hashed-$password")
+            PasswordHash.from($$"$argon2id$v=19$m=65536,t=3,p=1$hashed-$${password}")
     }
 
     private class RecordingPasswordRecoveryTelemetry : PasswordRecoveryTelemetry {

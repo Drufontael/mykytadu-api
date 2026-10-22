@@ -31,8 +31,7 @@ internal class UserProfileController(private val profile: IdentityProfile, priva
     @GetMapping
     fun getCurrentProfile(@AuthenticationPrincipal principal: Jwt): ResponseEntity<UserProfileResponse> {
         val userId = UUID.fromString(principal.subject)
-        val outcome = profile.getProfile(GetProfileQuery(userId))
-        return when (outcome) {
+        return when (val outcome = profile.getProfile(GetProfileQuery(userId))) {
             is ProfileOutcome.Success -> ResponseEntity.ok(outcome.profile.toResponse())
 
             ProfileOutcome.NotFound,
@@ -48,8 +47,7 @@ internal class UserProfileController(private val profile: IdentityProfile, priva
     ): ResponseEntity<UserProfileResponse> {
         val displayName = extractAndValidateDisplayName(body)
         val userId = UUID.fromString(principal.subject)
-        val outcome = profile.updateProfile(UpdateProfileCommand(userId, displayName))
-        return when (outcome) {
+        return when (val outcome = profile.updateProfile(UpdateProfileCommand(userId, displayName))) {
             is ProfileOutcome.Success -> ResponseEntity.ok(outcome.profile.toResponse())
 
             ProfileOutcome.NotFound,

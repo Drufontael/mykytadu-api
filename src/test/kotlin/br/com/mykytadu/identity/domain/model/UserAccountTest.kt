@@ -82,7 +82,7 @@ class UserAccountTest {
             createdAt,
         ).verifyEmail(createdAt.plusSeconds(60))
 
-        val newHash = PasswordHash.from("\$argon2id\$v=19\$m=65536,t=3,p=1\$new-fixture")
+        val newHash = PasswordHash.from($$"$argon2id$v=19$m=65536,t=3,p=1$new-fixture")
         val updated = account.resetPassword(newHash, resetAt)
 
         assertThat(updated.credential.hash).isEqualTo(newHash)
@@ -103,7 +103,7 @@ class UserAccountTest {
             createdAt,
         )
 
-        val newHash = PasswordHash.from("\$argon2id\$v=19\$m=65536,t=3,p=1\$new-fixture")
+        val newHash = PasswordHash.from($$"$argon2id$v=19$m=65536,t=3,p=1$new-fixture")
         assertThatThrownBy { account.resetPassword(newHash, createdAt.plusSeconds(60)) }
             .isInstanceOf(IllegalStateException::class.java)
             .hasMessage("Only an active user can reset a password")
@@ -371,6 +371,6 @@ class UserAccountTest {
     companion object {
 
         private val USER_ID = UserId.from(UUID.fromString("01991f18-7d42-7b21-a2ef-1d8e6e14a901"))
-        private val PASSWORD_HASH = PasswordHash.from("${'$'}argon2id${'$'}v=19${'$'}m=65536,t=3,p=1${'$'}fixture")
+        private val PASSWORD_HASH = PasswordHash.from($$"$argon2id$v=19$m=65536,t=3,p=1$fixture")
     }
 }

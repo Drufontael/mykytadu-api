@@ -46,7 +46,7 @@ class UserAccountPersistenceIntegrationTests(
             id = UserId.from(UUID.fromString("01991f18-7d42-7b21-a2ef-1d8e6e14a901")),
             email = Email.from("Person@Example.COM"),
             displayName = "Person",
-            passwordHash = PasswordHash.from("${'$'}argon2id${'$'}v=19${'$'}m=65536,t=3,p=1${'$'}fixture"),
+            passwordHash = PasswordHash.from($$"$argon2id$v=19$m=65536,t=3,p=1$fixture"),
             now = Instant.parse("2026-09-18T12:00:00Z"),
         )
 
@@ -99,7 +99,7 @@ class UserAccountPersistenceIntegrationTests(
                 user = user,
                 credential = PasswordCredential.argon2id(
                     userId,
-                    PasswordHash.from("${'$'}argon2id${'$'}v=19${'$'}m=65536,t=3,p=1${'$'}fixture-$index"),
+                    PasswordHash.from($$"$argon2id$v=19$m=65536,t=3,p=1$fixture-$${index}"),
                     createdAt,
                 ),
                 roles = setOf(RoleAssignment.defaultFor(userId)),

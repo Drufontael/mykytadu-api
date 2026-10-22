@@ -100,7 +100,7 @@ class AccountLifecycleServiceTest {
             id = USER_ID,
             email = Email.from("active@example.com"),
             displayName = "Active",
-            passwordHash = PasswordHash.from("\$argon2id\$v=19\$m=16,t=2,p=1\$mock\$mock"),
+            passwordHash = PasswordHash.from($$"$argon2id$v=19$m=16,t=2,p=1$mock$mock"),
             now = createdAt,
         ).verifyEmail(createdAt.plusSeconds(60))
     }

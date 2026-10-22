@@ -116,7 +116,7 @@ class ProfileServiceTest {
         )
         val credential = PasswordCredential.argon2id(
             userId = userId,
-            hash = PasswordHash.from("${'$'}argon2id${'$'}v=19${'$'}m=65536,t=3,p=1${'$'}fixture"),
+            hash = PasswordHash.from($$"$argon2id$v=19$m=65536,t=3,p=1$fixture"),
             now = now,
         )
         return UserAccount.restore(user, credential, setOf(RoleAssignment(userId, Role.USER)))

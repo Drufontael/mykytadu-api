@@ -61,7 +61,7 @@ class IdentitySecurityAdaptersTest {
         assertThat(hasher.matches("a-secure-test-password", hash)).isTrue()
         assertThat(hasher.matches("wrong-password", hash)).isFalse()
         assertThat(hasher.matches("a-secure-test-password", null)).isFalse()
-        assertThat(hash.encodedValue()).startsWith("${'$'}argon2id${'$'}v=")
+        assertThat(hash.encodedValue()).startsWith($$"$argon2id$v=")
     }
 
     @Test

@@ -217,7 +217,7 @@ class AuthenticationServiceTest {
     companion object {
         private val NOW = Instant.parse("2026-09-22T12:00:00Z")
         private val USER_ID = UserId.from(UUID.fromString("019937b6-3600-7001-8000-000000000001"))
-        private val PASSWORD_HASH = PasswordHash.from("${'$'}argon2id${'$'}v=19${'$'}fixture")
+        private val PASSWORD_HASH = PasswordHash.from($$"$argon2id$v=19$fixture")
         private const val PASSWORD = "a-secure-test-password"
     }
 }
