@@ -19,6 +19,15 @@ class UserAccount private constructor(val user: User, val credential: PasswordCr
         roles = roles,
     )
 
+    fun resetPassword(passwordHash: PasswordHash, now: Instant): UserAccount {
+        check(user.status == UserStatus.ACTIVE) { "Only an active user can reset a password" }
+        return UserAccount(
+            user = user,
+            credential = PasswordCredential.argon2id(user.id, passwordHash, now),
+            roles = roles,
+        )
+    }
+
     companion object {
 
         fun pending(

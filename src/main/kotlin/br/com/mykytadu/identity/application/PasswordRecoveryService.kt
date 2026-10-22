@@ -3,9 +3,12 @@ package br.com.mykytadu.identity.application
 import br.com.mykytadu.identity.api.IdentityPasswordRecovery
 import br.com.mykytadu.identity.api.RequestPasswordResetCommand
 import br.com.mykytadu.identity.api.RequestPasswordResetOutcome
+import br.com.mykytadu.identity.api.ResetPasswordCommand
+import br.com.mykytadu.identity.api.ResetPasswordOutcome
 import br.com.mykytadu.identity.application.port.out.ActionTokenCryptography
 import br.com.mykytadu.identity.application.port.out.DeliveryStatus
 import br.com.mykytadu.identity.application.port.out.IdentityIdGenerator
+import br.com.mykytadu.identity.application.port.out.PasswordHasher
 import br.com.mykytadu.identity.application.port.out.PasswordRecoveryRateLimiter
 import br.com.mykytadu.identity.application.port.out.PasswordRecoveryStore
 import br.com.mykytadu.identity.application.port.out.PasswordRecoveryTelemetry
@@ -24,6 +27,7 @@ internal class PasswordRecoveryService(
     private val store: PasswordRecoveryStore,
     private val idGenerator: IdentityIdGenerator,
     private val tokenCryptography: ActionTokenCryptography,
+    private val passwordHasher: PasswordHasher,
     private val emailSender: PasswordResetEmailSender,
     private val rateLimiter: PasswordRecoveryRateLimiter,
     private val telemetry: PasswordRecoveryTelemetry,
@@ -65,6 +69,24 @@ internal class PasswordRecoveryService(
         }
 
         return RequestPasswordResetOutcome.Accepted
+    }
+
+    override fun resetPassword(command: ResetPasswordCommand): ResetPasswordOutcome {
+        val now = clock.instant()
+        val tokenHash = tokenCryptography.hash(command.actionToken)
+        val passwordHash = passwordHasher.hash(command.newPassword)
+        return try {
+            if (store.resetPassword(tokenHash, passwordHash, now)) {
+                telemetry.passwordResetCompleted()
+                ResetPasswordOutcome.Reset
+            } else {
+                telemetry.passwordResetInvalidToken()
+                ResetPasswordOutcome.InvalidToken
+            }
+        } catch (_: RuntimeException) {
+            telemetry.passwordResetProcessingFailed()
+            ResetPasswordOutcome.InvalidToken
+        }
     }
 }
 

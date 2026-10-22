@@ -9,4 +9,10 @@ interface PasswordRecoveryTelemetry {
     fun forgotPasswordDeliveryUnavailable()
 
     fun forgotPasswordProcessingFailed()
+
+    fun passwordResetCompleted()
+
+    fun passwordResetInvalidToken()
+
+    fun passwordResetProcessingFailed()
 }

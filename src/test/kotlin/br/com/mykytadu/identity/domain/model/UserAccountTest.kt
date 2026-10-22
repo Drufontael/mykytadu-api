@@ -71,6 +71,45 @@ class UserAccountTest {
     }
 
     @Test
+    fun `resets password for an active account`() {
+        val createdAt = Instant.parse("2026-09-18T12:00:00Z")
+        val resetAt = Instant.parse("2026-09-18T14:00:00Z")
+        val account = UserAccount.pending(
+            USER_ID,
+            Email.from("person@example.com"),
+            null,
+            PASSWORD_HASH,
+            createdAt,
+        ).verifyEmail(createdAt.plusSeconds(60))
+
+        val newHash = PasswordHash.from("\$argon2id\$v=19\$m=65536,t=3,p=1\$new-fixture")
+        val updated = account.resetPassword(newHash, resetAt)
+
+        assertThat(updated.credential.hash).isEqualTo(newHash)
+        assertThat(updated.credential.algorithm).isEqualTo(PasswordAlgorithm.ARGON2ID)
+        assertThat(updated.credential.updatedAt).isEqualTo(resetAt)
+        assertThat(updated.user).isEqualTo(account.user)
+        assertThat(updated.roles).isEqualTo(account.roles)
+    }
+
+    @Test
+    fun `does not reset password for a pending account`() {
+        val createdAt = Instant.parse("2026-09-18T12:00:00Z")
+        val account = UserAccount.pending(
+            USER_ID,
+            Email.from("person@example.com"),
+            null,
+            PASSWORD_HASH,
+            createdAt,
+        )
+
+        val newHash = PasswordHash.from("\$argon2id\$v=19\$m=65536,t=3,p=1\$new-fixture")
+        assertThatThrownBy { account.resetPassword(newHash, createdAt.plusSeconds(60)) }
+            .isInstanceOf(IllegalStateException::class.java)
+            .hasMessage("Only an active user can reset a password")
+    }
+
+    @Test
     fun `rejects ids that are not UUIDv7`() {
         assertThatThrownBy { UserId.from(UUID.randomUUID()) }
             .isInstanceOf(IllegalArgumentException::class.java)

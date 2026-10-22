@@ -15,6 +15,9 @@ class MicrometerPasswordRecoveryTelemetryTest {
         telemetry.forgotPasswordRateLimited()
         telemetry.forgotPasswordDeliveryUnavailable()
         telemetry.forgotPasswordProcessingFailed()
+        telemetry.passwordResetCompleted()
+        telemetry.passwordResetInvalidToken()
+        telemetry.passwordResetProcessingFailed()
 
         val counters = registry.meters
         assertThat(counters.map { it.id.name })
@@ -23,6 +26,9 @@ class MicrometerPasswordRecoveryTelemetryTest {
                 "mykytadu.identity.password.recovery.rate.limited",
                 "mykytadu.identity.password.recovery.delivery.unavailable",
                 "mykytadu.identity.password.recovery.processing.failed",
+                "mykytadu.identity.password.reset.completed",
+                "mykytadu.identity.password.reset.invalid.token",
+                "mykytadu.identity.password.reset.processing.failed",
             )
         assertThat(counters).allSatisfy { meter ->
             assertThat(meter.id.tags).isEmpty()

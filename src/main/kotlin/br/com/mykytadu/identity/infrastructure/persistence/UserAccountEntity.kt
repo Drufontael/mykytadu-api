@@ -28,7 +28,7 @@ internal class UserAccountEntity(
     @Embedded
     var profile: UserProfileEmbeddable,
     @Embedded
-    val credential: PasswordCredentialEmbeddable,
+    var credential: PasswordCredentialEmbeddable,
     roles: Set<String>,
 ) {
 

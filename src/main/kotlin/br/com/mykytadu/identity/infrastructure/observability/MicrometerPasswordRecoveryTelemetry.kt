@@ -22,6 +22,18 @@ internal class MicrometerPasswordRecoveryTelemetry(registry: MeterRegistry) : Pa
         .description("Password recovery attempts that failed during processing")
         .register(registry)
 
+    private val resetCompleted = Counter.builder("mykytadu.identity.password.reset.completed")
+        .description("Password resets completed successfully")
+        .register(registry)
+
+    private val resetInvalidToken = Counter.builder("mykytadu.identity.password.reset.invalid.token")
+        .description("Password resets rejected due to invalid or expired action token")
+        .register(registry)
+
+    private val resetProcessingFailed = Counter.builder("mykytadu.identity.password.reset.processing.failed")
+        .description("Password resets that failed during processing")
+        .register(registry)
+
     override fun forgotPasswordAccepted() = accepted.increment()
 
     override fun forgotPasswordRateLimited() = rateLimited.increment()
@@ -29,4 +41,10 @@ internal class MicrometerPasswordRecoveryTelemetry(registry: MeterRegistry) : Pa
     override fun forgotPasswordDeliveryUnavailable() = deliveryUnavailable.increment()
 
     override fun forgotPasswordProcessingFailed() = processingFailed.increment()
+
+    override fun passwordResetCompleted() = resetCompleted.increment()
+
+    override fun passwordResetInvalidToken() = resetInvalidToken.increment()
+
+    override fun passwordResetProcessingFailed() = resetProcessingFailed.increment()
 }

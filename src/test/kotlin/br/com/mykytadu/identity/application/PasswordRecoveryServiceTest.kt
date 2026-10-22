@@ -2,9 +2,12 @@ package br.com.mykytadu.identity.application
 
 import br.com.mykytadu.identity.api.RequestPasswordResetCommand
 import br.com.mykytadu.identity.api.RequestPasswordResetOutcome
+import br.com.mykytadu.identity.api.ResetPasswordCommand
+import br.com.mykytadu.identity.api.ResetPasswordOutcome
 import br.com.mykytadu.identity.application.port.out.ActionTokenCryptography
 import br.com.mykytadu.identity.application.port.out.DeliveryStatus
 import br.com.mykytadu.identity.application.port.out.IdentityIdGenerator
+import br.com.mykytadu.identity.application.port.out.PasswordHasher
 import br.com.mykytadu.identity.application.port.out.PasswordRecoveryRateLimiter
 import br.com.mykytadu.identity.application.port.out.PasswordRecoveryStore
 import br.com.mykytadu.identity.application.port.out.PasswordRecoveryTelemetry
@@ -13,6 +16,7 @@ import br.com.mykytadu.identity.application.port.out.PasswordResetTokenDraft
 import br.com.mykytadu.identity.application.port.out.RateLimitDecision
 import br.com.mykytadu.identity.domain.model.ActionTokenId
 import br.com.mykytadu.identity.domain.model.Email
+import br.com.mykytadu.identity.domain.model.PasswordHash
 import br.com.mykytadu.identity.domain.model.TokenHash
 import br.com.mykytadu.identity.domain.model.UserId
 import org.assertj.core.api.Assertions.assertThat
@@ -79,6 +83,8 @@ class PasswordRecoveryServiceTest {
                 token: PasswordResetTokenDraft,
                 invalidatedAt: Instant,
             ): String? = throw IllegalStateException("DB unavailable")
+
+            override fun resetPassword(tokenHash: TokenHash, passwordHash: PasswordHash, now: Instant): Boolean = false
         }
         val service = service(store = store)
 
@@ -100,17 +106,76 @@ class PasswordRecoveryServiceTest {
         assertThat(outcome).isEqualTo(RequestPasswordResetOutcome.RateLimited(45))
     }
 
+    @Test
+    fun `resets password and notifies telemetry on success`() {
+        val events = mutableListOf<String>()
+        val store = FakePasswordRecoveryStore(events, resetSuccess = true)
+        val telemetry = RecordingPasswordRecoveryTelemetry()
+        val service = service(store = store, telemetry = telemetry)
+
+        val outcome = service.resetPassword(ResetPasswordCommand(RAW_TOKEN, "new-strong-password-123"))
+
+        assertThat(outcome).isEqualTo(ResetPasswordOutcome.Reset)
+        assertThat(events).containsExactly("reset")
+        assertThat(store.lastResetTokenHash).isNotNull
+        assertThat(store.lastResetPasswordHash?.encodedValue()).contains("new-strong-password-123")
+        assertThat(telemetry.resetCompletedCalled).isTrue()
+        assertThat(telemetry.resetInvalidTokenCalled).isFalse()
+    }
+
+    @Test
+    fun `returns invalid token when store returns false`() {
+        val events = mutableListOf<String>()
+        val store = FakePasswordRecoveryStore(events, resetSuccess = false)
+        val telemetry = RecordingPasswordRecoveryTelemetry()
+        val service = service(store = store, telemetry = telemetry)
+
+        val outcome = service.resetPassword(ResetPasswordCommand(RAW_TOKEN, "new-strong-password-123"))
+
+        assertThat(outcome).isEqualTo(ResetPasswordOutcome.InvalidToken)
+        assertThat(events).containsExactly("reset")
+        assertThat(telemetry.resetCompletedCalled).isFalse()
+        assertThat(telemetry.resetInvalidTokenCalled).isTrue()
+    }
+
+    @Test
+    fun `returns invalid token and records failure when store throws exception`() {
+        val store = object : PasswordRecoveryStore {
+            override fun createPasswordResetToken(
+                email: Email,
+                token: PasswordResetTokenDraft,
+                invalidatedAt: Instant,
+            ): String? = null
+
+            override fun resetPassword(
+                tokenHash: TokenHash,
+                passwordHash: br.com.mykytadu.identity.domain.model.PasswordHash,
+                now: Instant,
+            ): Boolean = throw IllegalStateException("Database connection broken")
+        }
+        val telemetry = RecordingPasswordRecoveryTelemetry()
+        val service = service(store = store, telemetry = telemetry)
+
+        val outcome = service.resetPassword(ResetPasswordCommand(RAW_TOKEN, "new-strong-password-123"))
+
+        assertThat(outcome).isEqualTo(ResetPasswordOutcome.InvalidToken)
+        assertThat(telemetry.resetProcessingFailedCalled).isTrue()
+    }
+
     private fun service(
         store: PasswordRecoveryStore = FakePasswordRecoveryStore(mutableListOf()),
         sender: PasswordResetEmailSender = FakeResetEmailSender(mutableListOf()),
         rateLimiter: PasswordRecoveryRateLimiter = FakeRateLimiter(),
+        passwordHasher: PasswordHasher = FakePasswordHasher(),
+        telemetry: PasswordRecoveryTelemetry = NoOpPasswordRecoveryTelemetry,
     ): PasswordRecoveryService = PasswordRecoveryService(
         store = store,
         idGenerator = FixedIdGenerator(),
         tokenCryptography = FixedTokenCryptography(),
+        passwordHasher = passwordHasher,
         emailSender = sender,
         rateLimiter = rateLimiter,
-        telemetry = NoOpPasswordRecoveryTelemetry,
+        telemetry = telemetry,
         clock = Clock.fixed(NOW, ZoneOffset.UTC),
         properties = PasswordRecoveryApplicationProperties(Duration.ofHours(2)),
     )
@@ -123,8 +188,11 @@ class PasswordRecoveryServiceTest {
     private class FakePasswordRecoveryStore(
         private val events: MutableList<String>,
         private val recipient: String? = null,
+        private val resetSuccess: Boolean = true,
     ) : PasswordRecoveryStore {
         var createdToken: PasswordResetTokenDraft? = null
+        var lastResetTokenHash: TokenHash? = null
+        var lastResetPasswordHash: PasswordHash? = null
 
         override fun createPasswordResetToken(
             email: Email,
@@ -134,6 +202,40 @@ class PasswordRecoveryServiceTest {
             events += "store"
             createdToken = token
             return recipient
+        }
+
+        override fun resetPassword(tokenHash: TokenHash, passwordHash: PasswordHash, now: Instant): Boolean {
+            events += "reset"
+            lastResetTokenHash = tokenHash
+            lastResetPasswordHash = passwordHash
+            return resetSuccess
+        }
+    }
+
+    private class FakePasswordHasher : PasswordHasher {
+        override fun hash(password: CharSequence): PasswordHash =
+            PasswordHash.from("\$argon2id\$v=19\$m=65536,t=3,p=1\$hashed-$password")
+    }
+
+    private class RecordingPasswordRecoveryTelemetry : PasswordRecoveryTelemetry {
+        var resetCompletedCalled = false
+        var resetInvalidTokenCalled = false
+        var resetProcessingFailedCalled = false
+
+        override fun forgotPasswordAccepted() = Unit
+        override fun forgotPasswordRateLimited() = Unit
+        override fun forgotPasswordDeliveryUnavailable() = Unit
+        override fun forgotPasswordProcessingFailed() = Unit
+        override fun passwordResetCompleted() {
+            resetCompletedCalled = true
+        }
+
+        override fun passwordResetInvalidToken() {
+            resetInvalidTokenCalled = true
+        }
+
+        override fun passwordResetProcessingFailed() {
+            resetProcessingFailedCalled = true
         }
     }
 
@@ -177,6 +279,9 @@ class PasswordRecoveryServiceTest {
         override fun forgotPasswordRateLimited() = Unit
         override fun forgotPasswordDeliveryUnavailable() = Unit
         override fun forgotPasswordProcessingFailed() = Unit
+        override fun passwordResetCompleted() = Unit
+        override fun passwordResetInvalidToken() = Unit
+        override fun passwordResetProcessingFailed() = Unit
     }
 
     companion object {

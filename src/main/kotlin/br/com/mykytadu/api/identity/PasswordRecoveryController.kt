@@ -5,6 +5,8 @@ import br.com.mykytadu.api.error.ProblemCode
 import br.com.mykytadu.identity.api.IdentityPasswordRecovery
 import br.com.mykytadu.identity.api.RequestPasswordResetCommand
 import br.com.mykytadu.identity.api.RequestPasswordResetOutcome
+import br.com.mykytadu.identity.api.ResetPasswordCommand
+import br.com.mykytadu.identity.api.ResetPasswordOutcome
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Email
@@ -47,6 +49,17 @@ internal class PasswordRecoveryController(
             )
         }
     }
+
+    @PostMapping("/reset")
+    fun resetPassword(@Valid @RequestBody request: PasswordResetRequest): ResponseEntity<Void> =
+        when (recovery.resetPassword(ResetPasswordCommand(request.actionToken, request.newPassword))) {
+            ResetPasswordOutcome.Reset -> ResponseEntity.noContent().build()
+
+            ResetPasswordOutcome.InvalidToken -> throw ApiProblemException(
+                HttpStatus.BAD_REQUEST,
+                ProblemCode.INVALID_ACTION_TOKEN,
+            )
+        }
 }
 
 internal data class PasswordForgotRequest(
@@ -56,4 +69,15 @@ internal data class PasswordForgotRequest(
     val email: String,
 ) {
     override fun toString(): String = "PasswordForgotRequest(email=[REDACTED])"
+}
+
+internal data class PasswordResetRequest(
+    @field:NotBlank
+    @field:Size(min = 1, max = 512)
+    val actionToken: String,
+    @field:NotBlank
+    @field:Size(min = 12, max = 128)
+    val newPassword: String,
+) {
+    override fun toString(): String = "PasswordResetRequest([REDACTED])"
 }
