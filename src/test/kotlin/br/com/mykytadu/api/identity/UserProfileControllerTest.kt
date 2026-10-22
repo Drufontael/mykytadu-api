@@ -21,7 +21,9 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
+import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
+import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.oauth2.jwt.BadJwtException
 import org.springframework.security.oauth2.jwt.JwtDecoder
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt
@@ -59,7 +61,7 @@ class UserProfileControllerTest(
     @Test
     fun `gets current authenticated user profile`() {
         mockMvc.get("/api/v1/me") {
-            with(jwt().jwt { it.subject(USER_ID.toString()) })
+            with(authorizedUser())
         }.andExpect {
             status { isOk() }
             content { contentType(MediaType.APPLICATION_JSON) }
@@ -81,7 +83,7 @@ class UserProfileControllerTest(
         profile.getOutcome = ProfileOutcome.NotFound
 
         mockMvc.get("/api/v1/me") {
-            with(jwt().jwt { it.subject(USER_ID.toString()) })
+            with(authorizedUser())
         }.andExpect {
             status { isUnauthorized() }
             content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
@@ -99,12 +101,24 @@ class UserProfileControllerTest(
     }
 
     @Test
+    fun `returns 403 on get when token lacks required role`() {
+        mockMvc.get("/api/v1/me") {
+            with(jwt().jwt { it.subject(USER_ID.toString()) })
+        }.andExpect {
+            status { isForbidden() }
+            content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
+            jsonPath("$.code") { value("authorization_denied") }
+            header { string(HttpHeaders.CACHE_CONTROL, "no-store") }
+        }
+    }
+
+    @Test
     fun `updates display name successfully`() {
         val updated = DEFAULT_PROFILE.copy(displayName = "Novo Nome")
         profile.updateOutcome = ProfileOutcome.Success(updated)
 
         mockMvc.patch("/api/v1/me") {
-            with(jwt().jwt { it.subject(USER_ID.toString()) })
+            with(authorizedUser())
             contentType = MediaType.APPLICATION_JSON
             content = """{"displayName":"Novo Nome"}"""
         }.andExpect {
@@ -122,7 +136,7 @@ class UserProfileControllerTest(
         profile.updateOutcome = ProfileOutcome.Success(updated)
 
         mockMvc.patch("/api/v1/me") {
-            with(jwt().jwt { it.subject(USER_ID.toString()) })
+            with(authorizedUser())
             contentType = MediaType.APPLICATION_JSON
             content = """{"displayName":null}"""
         }.andExpect {
@@ -146,6 +160,20 @@ class UserProfileControllerTest(
         }
     }
 
+    @Test
+    fun `returns 403 on patch when token lacks required role`() {
+        mockMvc.patch("/api/v1/me") {
+            with(jwt().jwt { it.subject(USER_ID.toString()) })
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"displayName":"Novo Nome"}"""
+        }.andExpect {
+            status { isForbidden() }
+            content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
+            jsonPath("$.code") { value("authorization_denied") }
+            header { string(HttpHeaders.CACHE_CONTROL, "no-store") }
+        }
+    }
+
     @ParameterizedTest
     @ValueSource(
         strings = [
@@ -164,7 +192,7 @@ class UserProfileControllerTest(
     )
     fun `rejects invalid or unauthorized patch payloads`(payload: String) {
         mockMvc.patch("/api/v1/me") {
-            with(jwt().jwt { it.subject(USER_ID.toString()) })
+            with(authorizedUser())
             contentType = MediaType.APPLICATION_JSON
             content = payload
         }.andExpect {
@@ -179,7 +207,7 @@ class UserProfileControllerTest(
     @Test
     fun `rejects display name exceeding 80 characters`() {
         mockMvc.patch("/api/v1/me") {
-            with(jwt().jwt { it.subject(USER_ID.toString()) })
+            with(authorizedUser())
             contentType = MediaType.APPLICATION_JSON
             content = """{"displayName":"${"a".repeat(81)}"}"""
         }.andExpect {
@@ -190,6 +218,10 @@ class UserProfileControllerTest(
 
         assertThat(profile.updateCommands).isEmpty()
     }
+
+    private fun authorizedUser(userId: UUID = USER_ID) = jwt()
+        .jwt { it.subject(userId.toString()).claim("roles", listOf("USER")) }
+        .authorities(SimpleGrantedAuthority("ROLE_USER"))
 
     @TestConfiguration(proxyBeanMethods = false)
     class TestBeans {

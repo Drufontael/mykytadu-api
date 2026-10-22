@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ProblemDetail
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
+import org.springframework.security.access.AccessDeniedException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.MissingRequestHeaderException
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -58,6 +59,18 @@ class ApiExceptionHandler(private val problemFactory: ApiProblemFactory) {
         request = request,
         detail = "A required request header is missing.",
     )
+
+    @ExceptionHandler(AccessDeniedException::class)
+    fun handleAccessDenied(request: HttpServletRequest): ResponseEntity<ProblemDetail> {
+        val problem = problemFactory.create(
+            status = HttpStatus.FORBIDDEN,
+            code = ProblemCode.AUTHORIZATION_DENIED,
+            request = request,
+        )
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .header(HttpHeaders.CACHE_CONTROL, "no-store")
+            .body(problem)
+    }
 
     @ExceptionHandler(Exception::class)
     fun handleUnexpected(exception: Exception, request: HttpServletRequest): ProblemDetail {

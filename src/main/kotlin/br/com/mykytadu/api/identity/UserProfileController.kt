@@ -10,6 +10,7 @@ import br.com.mykytadu.identity.api.UserProfileDto
 import org.springframework.context.annotation.Profile
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.GetMapping
@@ -24,6 +25,7 @@ import java.util.UUID
 @RestController
 @Profile("!test")
 @RequestMapping("/api/v1/me")
+@PreAuthorize("hasRole('USER')")
 internal class UserProfileController(private val profile: IdentityProfile, private val objectMapper: ObjectMapper) {
 
     @GetMapping

@@ -187,7 +187,7 @@ class PasswordRecoveryStoreIntegrationTests(
         val account = createActiveUser("person2@example.com", sequence = 2)
         val resetTokenDraft = PasswordResetTokenDraft(
             id = actionTokenId(11),
-            tokenHash = TokenHash.sha256("2".repeat(64)),
+            tokenHash = TokenHash.sha256("d".repeat(64)),
             createdAt = NOW,
             expiresAt = NOW.plusSeconds(7_200),
         )
