@@ -19,6 +19,36 @@ class UserAccount private constructor(val user: User, val credential: PasswordCr
         roles = roles,
     )
 
+    fun resetPassword(passwordHash: PasswordHash, now: Instant): UserAccount {
+        check(user.status == UserStatus.ACTIVE) { "Only an active user can reset a password" }
+        return UserAccount(
+            user = user,
+            credential = PasswordCredential.argon2id(user.id, passwordHash, now),
+            roles = roles,
+        )
+    }
+
+    fun updateDisplayName(displayName: String?, now: Instant): UserAccount {
+        check(user.status == UserStatus.ACTIVE) { "Only an active user can update profile" }
+        return UserAccount(
+            user = user.updateDisplayName(displayName, now),
+            credential = credential,
+            roles = roles,
+        )
+    }
+
+    fun block(now: Instant): UserAccount = UserAccount(
+        user = user.block(now),
+        credential = credential,
+        roles = roles,
+    )
+
+    fun delete(now: Instant): UserAccount = UserAccount(
+        user = user.delete(now),
+        credential = credential,
+        roles = roles,
+    )
+
     companion object {
 
         fun pending(

@@ -35,4 +35,19 @@ internal interface SpringDataActionTokenRepository : JpaRepository<ActionTokenEn
         @Param("userId") userId: UUID,
         @Param("consumedAt") consumedAt: Instant,
     ): Int
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        """
+            update ActionTokenEntity token
+               set token.consumedAt = :consumedAt
+             where token.userId = :userId
+               and token.type = 'password_reset'
+               and token.consumedAt is null
+        """,
+    )
+    fun invalidateActivePasswordResetTokens(
+        @Param("userId") userId: UUID,
+        @Param("consumedAt") consumedAt: Instant,
+    ): Int
 }

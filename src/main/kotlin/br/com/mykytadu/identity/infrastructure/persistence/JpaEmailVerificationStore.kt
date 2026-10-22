@@ -62,14 +62,4 @@ internal class JpaEmailVerificationStore(
         val token: ActionTokenEntity,
         val tokenDomain: ActionToken,
     )
-
-    private fun ActionTokenEntity.toDomain(): ActionToken = ActionToken.restore(
-        id = ActionTokenId.from(id),
-        userId = UserId.from(userId),
-        type = ActionTokenType.fromPersistenceValue(type),
-        tokenHash = TokenHash.sha256(tokenHash),
-        expiresAt = expiresAt,
-        consumedAt = consumedAt,
-        createdAt = createdAt,
-    )
 }

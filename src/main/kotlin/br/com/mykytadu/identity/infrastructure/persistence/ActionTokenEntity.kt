@@ -1,5 +1,10 @@
 package br.com.mykytadu.identity.infrastructure.persistence
 
+import br.com.mykytadu.identity.domain.model.ActionToken
+import br.com.mykytadu.identity.domain.model.ActionTokenId
+import br.com.mykytadu.identity.domain.model.ActionTokenType
+import br.com.mykytadu.identity.domain.model.TokenHash
+import br.com.mykytadu.identity.domain.model.UserId
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
@@ -25,4 +30,14 @@ internal class ActionTokenEntity(
     var consumedAt: Instant?,
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant,
+)
+
+internal fun ActionTokenEntity.toDomain(): ActionToken = ActionToken.restore(
+    id = ActionTokenId.from(id),
+    userId = UserId.from(userId),
+    type = ActionTokenType.fromPersistenceValue(type),
+    tokenHash = TokenHash.sha256(tokenHash),
+    expiresAt = expiresAt,
+    consumedAt = consumedAt,
+    createdAt = createdAt,
 )

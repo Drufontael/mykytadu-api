@@ -242,7 +242,7 @@ class RegistrationServiceTest {
         private val NOW = Instant.parse("2026-09-19T12:00:00Z")
         private val USER_ID = UserId.from(UUID.fromString("0199204a-1200-7001-8000-000000000001"))
         private val TOKEN_ID = ActionTokenId.from(UUID.fromString("0199204a-1200-7001-8000-000000000002"))
-        private val PASSWORD_HASH = PasswordHash.from("${'$'}argon2id${'$'}v=19${'$'}fixture")
+        private val PASSWORD_HASH = PasswordHash.from($$"$argon2id$v=19$fixture")
         private const val RAW_TOKEN = "raw-verification-token"
     }
 }

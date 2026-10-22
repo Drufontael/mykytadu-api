@@ -9,11 +9,10 @@ repositório; as skills apenas operacionalizam fluxos específicos.
 | Necessidade | Skill | Efeito |
 | --- | --- | --- |
 | Auditar estado, coerência, progresso, riscos ou prontidão | [`mykytadu-api-audit`](skills/mykytadu-api-audit/SKILL.md) | Somente leitura |
-| Commitar e publicar uma unidade aceita | [`mykytadu-api-commit-publish`](skills/mykytadu-api-commit-publish/SKILL.md) | Pode alterar Git e fazer push, mediante autorização explícita |
+| Validar, consolidar e publicar (git push) a branch da sprint | [`mykytadu-api-commit-publish`](skills/mykytadu-api-commit-publish/SKILL.md) | Valida e executa push na branch da sprint remota, mediante autorização explícita |
 | Construir decisões semânticas tipadas com TypeSafe | [`typesafe-ai`](skills/typesafe-ai/SKILL.md) | Orienta integrações com julgamentos `Choice`, `Score` e `Noul` |
 
-Implementação comum não autoriza commit ou push e não deve usar a skill de
-publicação automaticamente.
+O fluxo de desenvolvimento autorizado possui autonomia para gerar commits locais atômicos na branch da sprint ativa para cada subtask validada. A publicação remota (`git push`), contudo, permanece protegida pela **trava no push** e requer autorização explícita do usuário ou invocação da skill de publicação.
 
 ## Regras de uso
 

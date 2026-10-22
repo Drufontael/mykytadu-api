@@ -58,7 +58,7 @@ O roadmap apresenta apenas o estado consolidado. Histórico, evidências, bloque
 | B2.1 | **Concluída** | 2026-09-18 | 2026-09-23 | [Cadastro, verificação e login](sprints/B2.1.md) |
 | B-2 | **Concluída** | 2026-09-23 | 2026-09-23 | [Onboarding e operação documental](sprints/B-2.md) |
 | B2.2 | **Concluída** | 2026-09-27 | 2026-09-29 | [Sessões, refresh e logout](sprints/B2.2.md) |
-| B2.3 | Não iniciada | — | — | a criar no planejamento da sprint |
+| B2.3 | **Em andamento** | 2026-10-17 | — | [Recuperação de acesso e perfil](sprints/B2.3.md) |
 | B3.1 | Não iniciada | — | — | a criar no planejamento da sprint |
 | B3.2 | Não iniciada | — | — | a criar no planejamento da sprint |
 | B4.1 | Não iniciada | — | — | a criar no planejamento da sprint |
@@ -374,6 +374,9 @@ flowchart LR
 - tradução assíncrona de documentos grandes.
 
 Esses itens devem entrar por nova decisão de produto e planejamento, não como expansão informal de sprint.
+
+> **Nota de alinhamento com o `mykytadu-app`:**
+> A biblioteca pessoal do aplicativo opera sob arquitetura *local-first* (Sprints 8 e 9 do KMP), e o catálogo de animes é provido diretamente pela AniList no cliente, sem catálogo próprio nesta API. O escopo atual do backend (Fases B0 a B4) atende estritamente à **Sprint 12 do app** (Identity e autenticação) e à tradução controlada. A sincronização em nuvem da biblioteca e progresso do usuário pertence à **Sprint 13 do app**, momento em que uma nova fase de roadmap da API definirá o respectivo ADR, schema PostgreSQL e contrato OpenAPI.
 
 ## 9. Métricas de acompanhamento
 

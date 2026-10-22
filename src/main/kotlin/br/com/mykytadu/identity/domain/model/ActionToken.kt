@@ -46,6 +46,22 @@ class ActionToken private constructor(
             createdAt = createdAt,
         )
 
+        fun passwordReset(
+            id: ActionTokenId,
+            userId: UserId,
+            tokenHash: TokenHash,
+            createdAt: Instant,
+            expiresAt: Instant,
+        ): ActionToken = ActionToken(
+            id = id,
+            userId = userId,
+            type = ActionTokenType.PASSWORD_RESET,
+            tokenHash = tokenHash,
+            expiresAt = expiresAt,
+            consumedAt = null,
+            createdAt = createdAt,
+        )
+
         fun restore(
             id: ActionTokenId,
             userId: UserId,

@@ -88,7 +88,7 @@ internal class IdentityAuthenticationConfiguration {
             "/api/v1/**",
             CorsConfiguration().apply {
                 allowedOrigins = properties.authentication.allowedWebOrigins.toList()
-                allowedMethods = listOf("GET", "POST")
+                allowedMethods = listOf("GET", "POST", "PATCH")
                 allowedHeaders = listOf("Content-Type", "Authorization", "X-CSRF-Token", "Idempotency-Key")
                 allowCredentials = true
             },

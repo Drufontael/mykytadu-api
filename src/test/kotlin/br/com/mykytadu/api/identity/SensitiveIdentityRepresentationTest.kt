@@ -9,7 +9,9 @@ import br.com.mykytadu.identity.api.LoginOutcome
 import br.com.mykytadu.identity.api.RegisterAccountCommand
 import br.com.mykytadu.identity.api.RegisteredUser
 import br.com.mykytadu.identity.api.RegistrationOutcome
+import br.com.mykytadu.identity.api.RequestPasswordResetCommand
 import br.com.mykytadu.identity.api.ResendVerificationCommand
+import br.com.mykytadu.identity.api.ResetPasswordCommand
 import br.com.mykytadu.identity.api.VerifyEmailCommand
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -42,9 +44,13 @@ class SensitiveIdentityRepresentationTest {
         RegisterRequest(EMAIL, PASSWORD, DISPLAY_NAME),
         ResendVerificationRequest(EMAIL),
         VerifyEmailRequest(ACTION_TOKEN),
+        PasswordForgotRequest(EMAIL),
+        PasswordResetRequest(ACTION_TOKEN, PASSWORD),
         LoginRequest(EMAIL, PASSWORD, AuthenticationClient.WEB.clientId),
         RegisterAccountCommand(EMAIL, PASSWORD, DISPLAY_NAME, REQUEST_KEY),
         ResendVerificationCommand(EMAIL, REQUEST_KEY),
+        RequestPasswordResetCommand(EMAIL, REQUEST_KEY),
+        ResetPasswordCommand(ACTION_TOKEN, PASSWORD),
         VerifyEmailCommand(ACTION_TOKEN),
         AuthenticateCommand(EMAIL, PASSWORD, AuthenticationClient.WEB, REQUEST_KEY),
         LoginCommand(EMAIL, PASSWORD, AuthenticationClient.WEB, REQUEST_KEY, ORIGIN),

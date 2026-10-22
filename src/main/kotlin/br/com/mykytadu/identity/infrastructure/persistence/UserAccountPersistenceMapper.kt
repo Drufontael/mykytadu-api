@@ -66,4 +66,12 @@ internal object UserAccountPersistenceMapper {
             updatedAt = account.user.updatedAt,
         )
     }
+
+    fun updateCredential(entity: UserAccountEntity, account: UserAccount) {
+        entity.credential = PasswordCredentialEmbeddable(
+            passwordHash = account.credential.hash.encodedValue(),
+            algorithm = account.credential.algorithm.persistenceValue,
+            updatedAt = account.credential.updatedAt,
+        )
+    }
 }

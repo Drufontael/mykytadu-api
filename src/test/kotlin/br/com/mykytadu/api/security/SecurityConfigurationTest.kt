@@ -1,5 +1,6 @@
 package br.com.mykytadu.api.security
 
+import br.com.mykytadu.api.error.ApiExceptionHandler
 import br.com.mykytadu.api.error.ApiProblemFactory
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -17,6 +18,7 @@ import org.springframework.http.MediaType
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.mock.web.MockHttpServletResponse
 import org.springframework.security.access.AccessDeniedException
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.oauth2.jwt.BadJwtException
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.jwt.JwtDecoder
@@ -36,6 +38,7 @@ import java.time.Instant
     ProblemAuthenticationEntryPoint::class,
     ProblemAccessDeniedHandler::class,
     ApiProblemFactory::class,
+    ApiExceptionHandler::class,
     SecurityConfigurationTest.TestJwtConfiguration::class,
 )
 @ActiveProfiles("test")
@@ -72,6 +75,92 @@ class SecurityConfigurationTest(
         }.andExpect {
             status { isOk() }
         }
+    }
+
+    @Test
+    fun `authorizes user role on user-secured route`() {
+        mockMvc.get("/test/security/user-only") {
+            header(HttpHeaders.AUTHORIZATION, "Bearer valid-user-token")
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.role") { value("USER") }
+        }
+    }
+
+    @Test
+    fun `authorizes admin role on admin-secured route`() {
+        mockMvc.get("/test/security/admin-only") {
+            header(HttpHeaders.AUTHORIZATION, "Bearer valid-admin-token")
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.role") { value("ADMIN") }
+        }
+    }
+
+    @Test
+    fun `authorizes principal having both roles on both routes`() {
+        mockMvc.get("/test/security/user-only") {
+            header(HttpHeaders.AUTHORIZATION, "Bearer valid-both-token")
+        }.andExpect {
+            status { isOk() }
+        }
+
+        mockMvc.get("/test/security/admin-only") {
+            header(HttpHeaders.AUTHORIZATION, "Bearer valid-both-token")
+        }.andExpect {
+            status { isOk() }
+        }
+    }
+
+    @Test
+    fun `denies user role when accessing admin-secured route`() {
+        mockMvc.get("/test/security/admin-only") {
+            header(HttpHeaders.AUTHORIZATION, "Bearer valid-user-token")
+        }.andExpect {
+            status { isForbidden() }
+            content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
+            jsonPath("$.status") { value(403) }
+            jsonPath("$.code") { value("authorization_denied") }
+            jsonPath("$.traceId") { isString() }
+            header { string(HttpHeaders.CACHE_CONTROL, "no-store") }
+        }
+    }
+
+    @Test
+    fun `denies admin role when accessing user-secured route`() {
+        mockMvc.get("/test/security/user-only") {
+            header(HttpHeaders.AUTHORIZATION, "Bearer valid-admin-token")
+        }.andExpect {
+            status { isForbidden() }
+            content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
+            jsonPath("$.status") { value(403) }
+            jsonPath("$.code") { value("authorization_denied") }
+            jsonPath("$.traceId") { isString() }
+            header { string(HttpHeaders.CACHE_CONTROL, "no-store") }
+        }
+    }
+
+    @Test
+    fun `denies token without roles on role-secured routes`() {
+        mockMvc.get("/test/security/user-only") {
+            header(HttpHeaders.AUTHORIZATION, "Bearer valid-no-roles-token")
+        }.andExpect {
+            status { isForbidden() }
+            content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
+            jsonPath("$.status") { value(403) }
+            jsonPath("$.code") { value("authorization_denied") }
+            header { string(HttpHeaders.CACHE_CONTROL, "no-store") }
+        }
+    }
+
+    @Test
+    fun `denies unauthenticated request to role-secured route with 401`() {
+        mockMvc.get("/test/security/user-only")
+            .andExpect {
+                status { isUnauthorized() }
+                content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
+                jsonPath("$.code") { value("authentication_required") }
+            }
     }
 
     @Test
@@ -129,10 +218,18 @@ class SecurityConfigurationTest(
 
 internal class FixedTestJwtDecoder : JwtDecoder {
     override fun decode(token: String): Jwt {
-        if (token != "valid-test-token") throw BadJwtException("invalid test token")
+        val roles = when (token) {
+            "valid-user-token" -> listOf("USER")
+            "valid-admin-token" -> listOf("ADMIN")
+            "valid-both-token" -> listOf("USER", "ADMIN")
+            "valid-no-roles-token" -> emptyList()
+            "valid-test-token" -> listOf("USER")
+            else -> throw BadJwtException("invalid test token")
+        }
         return Jwt.withTokenValue(token)
             .header("alg", "RS256")
             .subject("019937b6-3600-7001-8000-000000000001")
+            .claim("roles", roles)
             .issuedAt(Instant.parse("2026-09-22T12:00:00Z"))
             .expiresAt(Instant.parse("2026-09-22T12:10:00Z"))
             .build()
@@ -145,6 +242,14 @@ private class SecurityFixtureController {
 
     @GetMapping("/test/security/protected")
     fun protectedRoute() = mapOf("status" to "unexpected-public-response")
+
+    @GetMapping("/test/security/user-only")
+    @PreAuthorize("hasRole('USER')")
+    fun userOnlyRoute() = mapOf("role" to "USER")
+
+    @GetMapping("/test/security/admin-only")
+    @PreAuthorize("hasRole('ADMIN')")
+    fun adminOnlyRoute() = mapOf("role" to "ADMIN")
 
     @PostMapping(
         "/api/v1/auth/login",
