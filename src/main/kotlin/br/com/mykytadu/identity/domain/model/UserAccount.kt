@@ -28,6 +28,15 @@ class UserAccount private constructor(val user: User, val credential: PasswordCr
         )
     }
 
+    fun updateDisplayName(displayName: String?, now: Instant): UserAccount {
+        check(user.status == UserStatus.ACTIVE) { "Only an active user can update profile" }
+        return UserAccount(
+            user = user.updateDisplayName(displayName, now),
+            credential = credential,
+            roles = roles,
+        )
+    }
+
     companion object {
 
         fun pending(

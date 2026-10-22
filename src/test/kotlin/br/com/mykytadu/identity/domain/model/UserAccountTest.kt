@@ -228,6 +228,86 @@ class UserAccountTest {
             .hasMessage("Every role must belong to the user")
     }
 
+    @Test
+    fun `updates display name for an active account`() {
+        val createdAt = Instant.parse("2026-09-18T12:00:00Z")
+        val updateAt = Instant.parse("2026-09-18T14:00:00Z")
+        val account = UserAccount.pending(
+            USER_ID,
+            Email.from("person@example.com"),
+            "Original",
+            PASSWORD_HASH,
+            createdAt,
+        ).verifyEmail(createdAt.plusSeconds(60))
+
+        val updated = account.updateDisplayName("Novo Nome", updateAt)
+
+        assertThat(updated.user.displayName).isEqualTo("Novo Nome")
+        assertThat(updated.user.updatedAt).isEqualTo(updateAt)
+        assertThat(updated.user.email).isEqualTo(account.user.email)
+        assertThat(updated.user.status).isEqualTo(UserStatus.ACTIVE)
+        assertThat(updated.credential).isSameAs(account.credential)
+        assertThat(updated.roles).isEqualTo(account.roles)
+    }
+
+    @Test
+    fun `clears display name to null for an active account`() {
+        val createdAt = Instant.parse("2026-09-18T12:00:00Z")
+        val updateAt = Instant.parse("2026-09-18T14:00:00Z")
+        val account = UserAccount.pending(
+            USER_ID,
+            Email.from("person@example.com"),
+            "Original",
+            PASSWORD_HASH,
+            createdAt,
+        ).verifyEmail(createdAt.plusSeconds(60))
+
+        val updated = account.updateDisplayName(null, updateAt)
+
+        assertThat(updated.user.displayName).isNull()
+        assertThat(updated.user.updatedAt).isEqualTo(updateAt)
+    }
+
+    @Test
+    fun `rejects invalid display name or past update timestamp`() {
+        val createdAt = Instant.parse("2026-09-18T12:00:00Z")
+        val account = UserAccount.pending(
+            USER_ID,
+            Email.from("person@example.com"),
+            "Original",
+            PASSWORD_HASH,
+            createdAt,
+        ).verifyEmail(createdAt.plusSeconds(60))
+
+        assertThatThrownBy { account.updateDisplayName("   ", createdAt.plusSeconds(120)) }
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("Display name length must be between 1 and 80 characters")
+
+        assertThatThrownBy { account.updateDisplayName("a".repeat(81), createdAt.plusSeconds(120)) }
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("Display name length must be between 1 and 80 characters")
+
+        assertThatThrownBy { account.updateDisplayName("Novo", createdAt) }
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessage("Display name update time must not precede the last update")
+    }
+
+    @Test
+    fun `does not update display name for a pending account`() {
+        val createdAt = Instant.parse("2026-09-18T12:00:00Z")
+        val account = UserAccount.pending(
+            USER_ID,
+            Email.from("person@example.com"),
+            "Original",
+            PASSWORD_HASH,
+            createdAt,
+        )
+
+        assertThatThrownBy { account.updateDisplayName("Novo", createdAt.plusSeconds(60)) }
+            .isInstanceOf(IllegalStateException::class.java)
+            .hasMessage("Only an active user can update profile")
+    }
+
     companion object {
 
         private val USER_ID = UserId.from(UUID.fromString("01991f18-7d42-7b21-a2ef-1d8e6e14a901"))

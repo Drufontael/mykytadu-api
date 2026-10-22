@@ -39,6 +39,19 @@ class User private constructor(
         )
     }
 
+    fun updateDisplayName(displayName: String?, updatedAt: Instant): User {
+        require(!updatedAt.isBefore(this.updatedAt)) { "Display name update time must not precede the last update" }
+        return User(
+            id = id,
+            email = email,
+            displayName = normalizeDisplayName(displayName),
+            status = status,
+            emailVerifiedAt = emailVerifiedAt,
+            createdAt = createdAt,
+            updatedAt = updatedAt,
+        )
+    }
+
     companion object {
 
         fun pending(id: UserId, email: Email, displayName: String?, now: Instant): User = User(
