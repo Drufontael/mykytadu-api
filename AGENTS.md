@@ -25,8 +25,9 @@ Em caso de divergência, não escolha silenciosamente uma fonte: corrija a incon
 - Este arquivo define as regras do repositório; skills complementam o fluxo, mas não podem relaxar suas restrições.
 - Em caso de conflito, preserve a regra mais restritiva e registre o bloqueio em vez de escolher silenciosamente uma interpretação.
 - Use `mykytadu-api-audit` para auditoria, revisão de progresso, coerência documental, riscos ou prontidão. Essa skill é somente leitura.
-- Use `mykytadu-api-commit-publish` somente quando o usuário invocar a skill ou autorizar explicitamente commit e publicação. A autorização não inclui pull request, merge, rebase ou force push.
-- Para implementação sem publicação, não use a skill de publicação; altere somente o escopo autorizado e aguarde nova autorização para commit ou push.
+- Use `mykytadu-api-commit-publish` para validar, consolidar e publicar (`git push`) a branch da sprint atual no remoto. A autorização para push não inclui pull request, merge, rebase ou force push.
+- O agente possui autorização para criar commits locais atômicos na branch da sprint ativa para cada unidade ou subtask validada com sucesso, mantendo código, testes e documentação sincronizados.
+- A trava de segurança protege o repositório remoto: nunca realize `git push`, criação de pull request, merge na `master`, rebase ou force push sem autorização explícita do usuário.
 - Antes de usar uma skill, leia seu `SKILL.md` completo e os recursos que ele indicar. O índice das skills fica em `.agents/README.md`.
 - Uma skill deve declarar claramente seu escopo, efeitos colaterais, pré-condições e resultado esperado.
 - Antes de declarar pronta uma alteração em `AGENTS.md` ou `.agents/`, execute `.agents\scripts\validate-skills.ps1`.
@@ -78,6 +79,20 @@ O baseline atual é Kotlin 2.4.10, Java 25, Spring Boot 4.1.1, Spring Modulith 2
 - Não crie foreign keys entre schemas pertencentes a módulos distintos.
 - Índices devem responder a consultas previstas e constraints devem proteger invariantes importantes.
 
+## Autonomia e execução contínua
+
+- Quando o usuário solicitar a execução de uma tarefa, subtask ou conjunto de tarefas da sprint ativa, o agente deve conduzir o ciclo de forma autônoma e contínua:
+  1. Implemente a alteração mínima necessária;
+  2. Valide com testes focados (unidade, fatia ou integração aplicável);
+  3. Atualize contemporaneamente o arquivo da sprint ativa (`docs/sprints/<sprint>.md`) com a evidência técnica verificada;
+  4. Crie um commit local atômico na branch da sprint atual (`sprint-<id>`) seguindo a convenção de commits com emojis do projeto (`:emoji: tipo(escopo): descrição curta`);
+  5. Avance automaticamente para a próxima subtask autorizada na sequência planejada.
+- O agente só deve interromper a execução contínua para consultar o usuário quando:
+  - ocorrer falha em testes ou build que não seja resolúvel deterministicamente;
+  - houver ambiguidade de regra de negócio ou conflito não resolvido entre as fontes da verdade;
+  - uma decisão exigir novo ADR ou alteração relevante em modelagem/contrato;
+  - todo o escopo solicitado pelo usuário tiver sido concluído.
+
 ## Implementação e testes
 
 - Prefira a menor alteração completa que satisfaça o critério de aceite.
@@ -90,9 +105,13 @@ O baseline atual é Kotlin 2.4.10, Java 25, Spring Boot 4.1.1, Spring Modulith 2
 - Use relógio injetável; não introduza sleeps frágeis.
 - Não persiga cobertura global cega. Priorize domínio, segurança, sessões, adapters e cache.
 
-## Gates obrigatórios
+## Gates e validação progressiva
 
-Antes de declarar a alteração pronta, execute na raiz:
+Para manter o ciclo ágil e evitar execuções pesadas a cada micro-passo, adote a validação em camadas:
+
+- **Feedback rápido (desenvolvimento / TDD):** execute testes direcionados da classe ou fatia alterada (ex: `.\gradlew.bat test --tests "...Test"`).
+- **Validação de subtask (commit local):** execute os testes do módulo/fatia afetados e os linters estáticos (`.\gradlew.bat ktlintCheck detekt`).
+- **Gate integral (conclusão de sprint ou pré-publicação):** antes de declarar a sprint concluída ou antes de publicar (`git push`), execute o gate completo na raiz:
 
 ```bash
 ./gradlew check --no-daemon --stacktrace
@@ -104,30 +123,31 @@ No PowerShell:
 .\gradlew.bat check --no-daemon --stacktrace
 ```
 
-O gate deve abranger compilação, testes, ktlint, Detekt, Kover, testes arquiteturais e integrações configuradas. Se não puder ser executado, informe claramente o motivo e quais verificações ficaram pendentes. Não masque falhas preexistentes nem desative gates para obter sucesso.
+O gate integral deve abranger compilação, testes, ktlint, Detekt, Kover, testes arquiteturais, lint de OpenAPI e integrações configuradas. Se não puder ser executado, informe claramente o motivo e quais verificações ficaram pendentes. Não masque falhas preexistentes nem desative gates para obter sucesso.
 
 Para mudanças documentais sem impacto executável, valide links, caminhos, estados e consistência entre as fontes da verdade; não execute uma suíte cara sem benefício verificável.
 
 ## Sprints, ADRs e documentação
 
-- Trabalhe incrementalmente segundo a sprint ativa e mantenha commits pequenos e descritivos.
+- Trabalhe incrementalmente segundo a sprint ativa e mantenha commits locais atômicos, descritivos e com documentação contemporânea.
 - Atualize o arquivo da sprint quando tarefa, bloqueio, escopo, decisão, risco ou evidência mudar.
 - Registre evidências curtas, reproduzíveis e sanitizadas; não cole logs extensos nem artefatos de build.
-- Uma tarefa implementada, mas ainda não aceita, permanece `Em validação`.
-- Não marque sprint como `Concluída` sem evidência para todos os critérios obrigatórios e aceite registrado.
+- Subtasks com testes automatizados aprovados e evidências registradas devem ser marcadas como `Concluída` no commit local da branch da sprint.
+- Não marque a sprint inteira como `Concluída` sem evidência para todos os critérios obrigatórios e encerramento registrado.
 - Mudanças relevantes de contrato, dados, segurança, limites modulares, dependências estruturais ou implantação exigem ADR antes da implementação afetada.
 - Atualize `docs/modelagem.md` quando a arquitetura vigente mudar.
 - Não duplique conteúdo canônico: prefira links e mantenha cada decisão em sua fonte responsável.
 
 ## Entrega ao usuário
 
-Ao finalizar, informe de forma objetiva:
+Ao finalizar uma sessão, lote de trabalho ou quando for necessária intervenção, informe de forma objetiva:
 
-- o que mudou;
+- o que mudou e o progresso realizado;
 - quais arquivos foram alterados;
 - quais critérios da sprint foram atendidos;
 - quais comandos/testes foram executados e seus resultados;
+- commits locais gerados na branch da sprint;
 - riscos, bloqueios ou validações pendentes;
 - qualquer decisão que ainda precise de aceite.
 
-Não crie commits, branches, pull requests, releases ou alterações externas além do que o usuário autorizou explicitamente.
+Nunca execute `git push`, criação de pull request, merge na `master`, rebase ou force push sem autorização explícita do usuário.

@@ -1,18 +1,18 @@
 ---
 name: mykytadu-api-commit-publish
-description: Revisa, valida, documenta, commita e publica alterações aceitas do mykytadu-api exclusivamente na branch da sprint atual. Use somente quando o usuário invocar explicitamente $mykytadu-api-commit-publish ou autorizar claramente commit e push; nunca cria pull request nem faz merge na master.
+description: Revisa, valida e publica (git push) os commits locais e alterações da branch da sprint atual no repositório remoto. Use quando o usuário invocar explicitamente $mykytadu-api-commit-publish ou solicitar publicação/push; nunca cria pull request nem faz merge na master.
 ---
 
 # MykytaDu API Commit Publish
 
-Publique uma unidade coerente de trabalho na branch da sprint para acumular entregas que, ao final, serão submetidas pelo usuário a pull request e merge. A invocação explícita ou autorização textual clara para commit e push autoriza revisar alterações, atualizar a documentação diretamente afetada, preparar o stage, criar um commit novo e fazer push da branch atual. Não autoriza PR, merge, rebase, force push nem mudanças fora do trabalho aceito.
+Conduza a publicação segura dos commits e alterações locais para a branch da sprint no repositório remoto. Esta skill destrava a **trava no push** do repositório, garantindo que o código publicado atenda aos gates de qualidade sem expor a branch `master` a mutações não autorizadas. A invocação explícita autoriza revisar alterações pendentes, atualizar documentação diretamente afetada, consolidar commits e fazer push da branch atual. Não autoriza PR, merge, rebase ou force push.
 
 ## Pré-condições da branch
 
 1. Leia o `AGENTS.md`, o roadmap, o registro da sprint atual e o índice de skills em `.agents/README.md`.
 2. Identifique branch, `HEAD`, remotes, upstream e relação local/remota.
 3. Confirme que a branch corresponde à sprint atual e não é `master`, `main` nem outra branch padrão ou protegida.
-4. Confirme que a task foi aceita explicitamente pelo usuário e que sua documentação de encerramento, quando aplicável, já foi atualizada.
+4. Confirme que as tarefas enviadas foram validadas e que suas evidências e documentação na sprint estão registradas.
 
 Se estiver na branch padrão, se a sprint estiver ambígua ou se a branch não corresponder ao registro da sprint, interrompa antes de qualquer mutação e peça orientação. Se for necessário criar a branch da sprint, proponha o nome e o ponto de origem e aguarde autorização explícita.
 
