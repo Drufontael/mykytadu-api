@@ -10,4 +10,10 @@ data class TranslationProviderProperties(
     val readTimeoutSeconds: Long = 5,
     val providerName: String = "libretranslate",
     val modelVersion: String = "argos-1.9",
-)
+    val mode: String = "libretranslate",
+) {
+    override fun toString(): String =
+        "TranslationProviderProperties(url=$url, apiKey=${if (apiKey.isNullOrBlank()) "none" else "***"}, " +
+            "connectTimeout=${connectTimeoutSeconds}s, readTimeout=${readTimeoutSeconds}s, " +
+            "provider=$providerName, model=$modelVersion, mode=$mode)"
+}
