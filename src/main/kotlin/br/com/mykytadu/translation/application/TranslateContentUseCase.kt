@@ -8,6 +8,7 @@ import br.com.mykytadu.translation.application.port.ProviderTranslationCommand
 import br.com.mykytadu.translation.application.port.TranslationCache
 import br.com.mykytadu.translation.application.port.TranslationIdGenerator
 import br.com.mykytadu.translation.application.port.TranslationProvider
+import br.com.mykytadu.translation.application.port.TranslationUsageTracker
 import br.com.mykytadu.translation.domain.exception.InvalidContentException
 import br.com.mykytadu.translation.domain.exception.TranslationProviderException
 import br.com.mykytadu.translation.domain.exception.TranslationProviderTimeoutException
@@ -17,16 +18,21 @@ import br.com.mykytadu.translation.domain.model.Language
 import br.com.mykytadu.translation.domain.service.ContentNormalizer
 import br.com.mykytadu.translation.domain.service.NormalizedContent
 import br.com.mykytadu.translation.domain.service.TranslationKeyGenerator
+import br.com.mykytadu.translation.infrastructure.config.TranslationQuotaProperties
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.time.Clock
 import java.time.Duration
+import java.time.ZoneOffset
+import java.util.UUID
 
 @Service
 class TranslateContentUseCase(
     private val provider: TranslationProvider,
     private val cache: TranslationCache,
     private val idGenerator: TranslationIdGenerator,
+    private val usageTracker: TranslationUsageTracker,
+    private val quotaProperties: TranslationQuotaProperties,
     private val clock: Clock,
 ) : TranslationService {
 
@@ -40,6 +46,7 @@ class TranslateContentUseCase(
         return processTranslation(command, normalized)
     }
 
+    @Suppress("ReturnCount")
     private fun processTranslation(
         command: TranslateContentCommand,
         normalized: NormalizedContent,
@@ -69,6 +76,24 @@ class TranslateContentUseCase(
             )
         }
 
+        if (command.userId != null) {
+            val usageDate = now.atZone(ZoneOffset.UTC).toLocalDate()
+            val currentUsage = usageTracker.getDailyCharactersCount(command.userId, usageDate)
+            val requestedChars = normalized.normalizedText.value.length
+            if (currentUsage + requestedChars > quotaProperties.dailyCharactersLimit) {
+                val nextMidnightUtc = usageDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant()
+                val retryAfterSeconds = Duration.between(now, nextMidnightUtc).toSeconds().coerceAtLeast(1L)
+                logger.warn(
+                    "Translation quota exceeded for user={}, current={}, requested={}, limit={}",
+                    command.userId,
+                    currentUsage,
+                    requestedChars,
+                    quotaProperties.dailyCharactersLimit,
+                )
+                return TranslationOutcome.QuotaExceeded(retryAfterSeconds)
+            }
+        }
+
         val providerCommand = ProviderTranslationCommand(
             text = normalized.normalizedText.value,
             sourceLanguage = sourceLang,
@@ -77,15 +102,26 @@ class TranslateContentUseCase(
             format = normalized.format,
         )
 
-        return executeProviderTranslation(providerCommand, sourceLang, targetLang, contentType, contentHash)
+        return executeProviderTranslation(
+            providerCommand = providerCommand,
+            sourceLanguage = sourceLang,
+            targetLanguage = targetLang,
+            contentType = contentType,
+            contentHash = contentHash,
+            userId = command.userId,
+            characterCount = normalized.normalizedText.value.length,
+        )
     }
 
+    @Suppress("LongParameterList")
     private fun executeProviderTranslation(
         providerCommand: ProviderTranslationCommand,
         sourceLanguage: Language,
         targetLanguage: Language,
         contentType: ContentType,
         contentHash: String,
+        userId: UUID?,
+        characterCount: Int,
     ): TranslationOutcome = try {
         val providerResult = provider.translate(providerCommand)
         val resolvedSource = providerResult.detectedSourceLanguage ?: sourceLanguage
@@ -104,6 +140,11 @@ class TranslateContentUseCase(
             expiresAt = now.plus(RETENTION_DURATION),
         )
         cache.save(cacheEntry)
+
+        if (userId != null) {
+            val usageDate = now.atZone(ZoneOffset.UTC).toLocalDate()
+            usageTracker.recordUsage(userId, usageDate, characterCount)
+        }
 
         val response = TranslatedContent(
             translation = providerResult.translatedText,

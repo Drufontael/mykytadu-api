@@ -180,6 +180,28 @@ class TranslationControllerTest(
         }
     }
 
+    @Test
+    fun `returns 429 and Retry-After header when quota is exceeded`() {
+        service.outcome = TranslationOutcome.QuotaExceeded(retryAfterSeconds = 3600)
+
+        mockMvc.post("/api/v1/translations") {
+            with(jwt().jwt { it.subject("018d45f3-524c-7000-8000-000000000099") })
+            contentType = MediaType.APPLICATION_JSON
+            content = """
+                {
+                    "text": "Valid text",
+                    "sourceLanguage": "en",
+                    "targetLanguage": "pt-BR",
+                    "contentType": "ANIME_DESCRIPTION"
+                }
+            """.trimIndent()
+        }.andExpect {
+            status { isTooManyRequests() }
+            header { string("Retry-After", "3600") }
+            jsonPath("$.code") { value("translation_quota_exceeded") }
+        }
+    }
+
     @TestConfiguration(proxyBeanMethods = false)
     class TestBeans {
         @Bean

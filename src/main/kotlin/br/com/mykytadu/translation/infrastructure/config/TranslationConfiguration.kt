@@ -3,10 +3,12 @@ package br.com.mykytadu.translation.infrastructure.config
 import br.com.mykytadu.translation.application.port.TranslationCache
 import br.com.mykytadu.translation.application.port.TranslationIdGenerator
 import br.com.mykytadu.translation.application.port.TranslationProvider
+import br.com.mykytadu.translation.application.port.TranslationUsageTracker
 import br.com.mykytadu.translation.infrastructure.client.LibreTranslateProviderAdapter
 import br.com.mykytadu.translation.infrastructure.client.TranslationProviderProperties
 import br.com.mykytadu.translation.infrastructure.fake.FakeTranslationProvider
 import br.com.mykytadu.translation.infrastructure.fake.InMemoryTranslationCache
+import br.com.mykytadu.translation.infrastructure.fake.InMemoryTranslationUsageTracker
 import br.com.mykytadu.translation.infrastructure.persistence.SecureTranslationIdGenerator
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -18,7 +20,7 @@ import org.springframework.web.client.RestClient
 import java.time.Clock
 
 @Configuration
-@EnableConfigurationProperties(TranslationProviderProperties::class)
+@EnableConfigurationProperties(TranslationProviderProperties::class, TranslationQuotaProperties::class)
 class TranslationConfiguration {
 
     @Bean
@@ -51,4 +53,8 @@ class TranslationConfiguration {
     @Bean
     @ConditionalOnMissingBean(TranslationCache::class)
     fun inMemoryTranslationCache(): TranslationCache = InMemoryTranslationCache()
+
+    @Bean
+    @ConditionalOnMissingBean(TranslationUsageTracker::class)
+    fun inMemoryTranslationUsageTracker(): TranslationUsageTracker = InMemoryTranslationUsageTracker()
 }

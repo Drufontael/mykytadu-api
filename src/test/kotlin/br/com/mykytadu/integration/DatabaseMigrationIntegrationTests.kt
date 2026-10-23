@@ -37,6 +37,7 @@ class DatabaseMigrationIntegrationTests(
             "20260922205855",
             "20260927123422",
             "20261023101800",
+            "20261023104500",
         )
         assertThat(PostgreSqlIntegrationFixture.businessTablesInPublicSchema(jdbcTemplate)).isZero()
 

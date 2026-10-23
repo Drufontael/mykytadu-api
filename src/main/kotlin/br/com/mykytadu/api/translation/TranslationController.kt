@@ -13,10 +13,13 @@ import org.springframework.context.annotation.Profile
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import java.util.UUID
 
 @RestController
 @Profile("!test")
@@ -30,14 +33,24 @@ internal class TranslationController(
     @PostMapping
     fun translate(
         @Valid @RequestBody request: TranslationRequestDto,
+        @AuthenticationPrincipal principal: Jwt?,
         servletRequest: HttpServletRequest,
     ): ResponseEntity<*> {
+        val userId = principal?.subject?.let {
+            try {
+                UUID.fromString(it)
+            } catch (_: IllegalArgumentException) {
+                null
+            }
+        }
+
         val command = TranslateContentCommand(
             text = request.text,
             sourceLanguage = request.sourceLanguage,
             targetLanguage = request.targetLanguage,
             contentType = request.contentType,
             source = request.source?.let { TranslationSourceInfo(it.system, it.externalId) },
+            userId = userId,
         )
 
         return when (val outcome = translationService.translate(command)) {
@@ -63,6 +76,9 @@ internal class TranslationController(
                 ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem)
             }
 
+            is TranslationOutcome.QuotaExceeded ->
+                fail(HttpStatus.TOO_MANY_REQUESTS, ProblemCode.TRANSLATION_QUOTA_EXCEEDED, outcome.retryAfterSeconds)
+
             TranslationOutcome.Timeout ->
                 fail(HttpStatus.GATEWAY_TIMEOUT, ProblemCode.TRANSLATION_PROVIDER_TIMEOUT)
 
@@ -71,5 +87,6 @@ internal class TranslationController(
         }
     }
 
-    private fun fail(status: HttpStatus, code: ProblemCode): Nothing = throw ApiProblemException(status, code)
+    private fun fail(status: HttpStatus, code: ProblemCode, retryAfterSeconds: Long? = null): Nothing =
+        throw ApiProblemException(status, code, retryAfterSeconds)
 }
