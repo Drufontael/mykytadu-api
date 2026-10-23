@@ -4,6 +4,7 @@ import br.com.mykytadu.translation.application.port.TranslationProvider
 import br.com.mykytadu.translation.infrastructure.client.LibreTranslateProviderAdapter
 import br.com.mykytadu.translation.infrastructure.client.TranslationProviderProperties
 import br.com.mykytadu.translation.infrastructure.fake.FakeTranslationProvider
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -24,8 +25,11 @@ class TranslationConfiguration {
     )
     fun libreTranslateProvider(
         properties: TranslationProviderProperties,
-        restClientBuilder: RestClient.Builder,
-    ): TranslationProvider = LibreTranslateProviderAdapter.createDefault(properties, restClientBuilder)
+        restClientBuilderProvider: ObjectProvider<RestClient.Builder>,
+    ): TranslationProvider {
+        val builder = restClientBuilderProvider.ifAvailable ?: RestClient.builder()
+        return LibreTranslateProviderAdapter.createDefault(properties, builder)
+    }
 
     @Bean
     @ConditionalOnMissingBean(TranslationProvider::class)

@@ -6,11 +6,9 @@ import br.com.mykytadu.api.security.ProblemAccessDeniedHandler
 import br.com.mykytadu.api.security.ProblemAuthenticationEntryPoint
 import br.com.mykytadu.api.security.SecurityConfiguration
 import br.com.mykytadu.translation.api.TranslateContentCommand
+import br.com.mykytadu.translation.api.TranslatedContent
 import br.com.mykytadu.translation.api.TranslationOutcome
 import br.com.mykytadu.translation.api.TranslationService
-import br.com.mykytadu.translation.domain.model.ContentType
-import br.com.mykytadu.translation.domain.model.Language
-import br.com.mykytadu.translation.domain.model.TranslationResult
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -45,13 +43,12 @@ class TranslationControllerTest(
     @BeforeEach
     fun reset() {
         service.outcome = TranslationOutcome.Success(
-            TranslationResult(
+            TranslatedContent(
                 translation = "Descrição traduzida",
-                sourceLanguage = Language.EN,
-                targetLanguage = Language.PT_BR,
-                contentType = ContentType.ANIME_DESCRIPTION,
+                sourceLanguage = "en",
+                targetLanguage = "pt-BR",
+                contentType = "ANIME_DESCRIPTION",
                 cached = false,
-                provider = "fake",
             ),
         )
     }

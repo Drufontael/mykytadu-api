@@ -7,8 +7,6 @@ import br.com.mykytadu.translation.api.TranslateContentCommand
 import br.com.mykytadu.translation.api.TranslationOutcome
 import br.com.mykytadu.translation.api.TranslationService
 import br.com.mykytadu.translation.api.TranslationSourceInfo
-import br.com.mykytadu.translation.domain.model.ContentType
-import br.com.mykytadu.translation.domain.model.Language
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
 import org.springframework.context.annotation.Profile
@@ -34,26 +32,22 @@ internal class TranslationController(
         @Valid @RequestBody request: TranslationRequestDto,
         servletRequest: HttpServletRequest,
     ): ResponseEntity<*> {
-        val sourceLang = Language.fromCode(request.sourceLanguage)
-        val targetLang = Language.fromCode(request.targetLanguage)
-        val contentType = ContentType.fromValue(request.contentType)
-
         val command = TranslateContentCommand(
             text = request.text,
-            sourceLanguage = sourceLang,
-            targetLanguage = targetLang,
-            contentType = contentType,
+            sourceLanguage = request.sourceLanguage,
+            targetLanguage = request.targetLanguage,
+            contentType = request.contentType,
             source = request.source?.let { TranslationSourceInfo(it.system, it.externalId) },
         )
 
         return when (val outcome = translationService.translate(command)) {
             is TranslationOutcome.Success -> {
                 val body = TranslationResponseDto(
-                    translation = outcome.result.translation,
-                    sourceLanguage = outcome.result.sourceLanguage.code,
-                    targetLanguage = outcome.result.targetLanguage.code,
-                    contentType = outcome.result.contentType.value,
-                    cached = outcome.result.cached,
+                    translation = outcome.response.translation,
+                    sourceLanguage = outcome.response.sourceLanguage,
+                    targetLanguage = outcome.response.targetLanguage,
+                    contentType = outcome.response.contentType,
+                    cached = outcome.response.cached,
                 )
                 ResponseEntity.ok(body)
             }

@@ -4,8 +4,6 @@ import br.com.mykytadu.translation.api.TranslateContentCommand
 import br.com.mykytadu.translation.api.TranslationOutcome
 import br.com.mykytadu.translation.domain.exception.TranslationProviderTimeoutException
 import br.com.mykytadu.translation.domain.exception.TranslationProviderUnavailableException
-import br.com.mykytadu.translation.domain.model.ContentType
-import br.com.mykytadu.translation.domain.model.Language
 import br.com.mykytadu.translation.infrastructure.fake.FakeTranslationProvider
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -27,28 +25,28 @@ class TranslateContentUseCaseTest {
 
         val command = TranslateContentCommand(
             text = "  Attack on Titan description\r\n",
-            sourceLanguage = Language.EN,
-            targetLanguage = Language.PT_BR,
-            contentType = ContentType.ANIME_DESCRIPTION,
+            sourceLanguage = "en",
+            targetLanguage = "pt-BR",
+            contentType = "ANIME_DESCRIPTION",
         )
 
         val outcome = useCase.translate(command)
 
         assertThat(outcome).isInstanceOf(TranslationOutcome.Success::class.java)
         val success = outcome as TranslationOutcome.Success
-        assertThat(success.result.translation).isEqualTo("Descrição de Shingeki no Kyojin")
-        assertThat(success.result.sourceLanguage).isEqualTo(Language.EN)
-        assertThat(success.result.targetLanguage).isEqualTo(Language.PT_BR)
-        assertThat(success.result.cached).isFalse()
+        assertThat(success.response.translation).isEqualTo("Descrição de Shingeki no Kyojin")
+        assertThat(success.response.sourceLanguage).isEqualTo("en")
+        assertThat(success.response.targetLanguage).isEqualTo("pt-BR")
+        assertThat(success.response.cached).isFalse()
     }
 
     @Test
     fun `returns InvalidContent when text contains malicious script`() {
         val command = TranslateContentCommand(
             text = "Malicious <script>alert('xss')</script>",
-            sourceLanguage = Language.EN,
-            targetLanguage = Language.PT_BR,
-            contentType = ContentType.ANIME_DESCRIPTION,
+            sourceLanguage = "en",
+            targetLanguage = "pt-BR",
+            contentType = "ANIME_DESCRIPTION",
         )
 
         val outcome = useCase.translate(command)
@@ -62,9 +60,9 @@ class TranslateContentUseCaseTest {
 
         val command = TranslateContentCommand(
             text = "Valid text",
-            sourceLanguage = Language.EN,
-            targetLanguage = Language.PT_BR,
-            contentType = ContentType.ANIME_DESCRIPTION,
+            sourceLanguage = "en",
+            targetLanguage = "pt-BR",
+            contentType = "ANIME_DESCRIPTION",
         )
 
         val outcome = useCase.translate(command)
@@ -78,9 +76,9 @@ class TranslateContentUseCaseTest {
 
         val command = TranslateContentCommand(
             text = "Valid text",
-            sourceLanguage = Language.EN,
-            targetLanguage = Language.PT_BR,
-            contentType = ContentType.ANIME_DESCRIPTION,
+            sourceLanguage = "en",
+            targetLanguage = "pt-BR",
+            contentType = "ANIME_DESCRIPTION",
         )
 
         val outcome = useCase.translate(command)
