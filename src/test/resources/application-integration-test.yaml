@@ -19,3 +19,6 @@ mykytadu:
       key-mode: ephemeral
     email:
       delivery-mode: accept
+  translation:
+    provider:
+      mode: fake

@@ -45,6 +45,15 @@ mykytadu:
       resend-cooldown: 1m
     email:
       delivery-mode: unavailable
+  translation:
+    provider:
+      url: ${MYKYTADU_TRANSLATION_PROVIDER_URL:http://localhost:5000}
+      api-key: ${MYKYTADU_TRANSLATION_PROVIDER_API_KEY:}
+      connect-timeout-seconds: 2
+      read-timeout-seconds: 5
+      provider-name: libretranslate
+      model-version: argos-1.9
+      mode: libretranslate
 
 logging:
   structured:
