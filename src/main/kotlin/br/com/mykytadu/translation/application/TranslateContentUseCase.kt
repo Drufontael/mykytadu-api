@@ -5,18 +5,30 @@ import br.com.mykytadu.translation.api.TranslatedContent
 import br.com.mykytadu.translation.api.TranslationOutcome
 import br.com.mykytadu.translation.api.TranslationService
 import br.com.mykytadu.translation.application.port.ProviderTranslationCommand
+import br.com.mykytadu.translation.application.port.TranslationCache
+import br.com.mykytadu.translation.application.port.TranslationIdGenerator
 import br.com.mykytadu.translation.application.port.TranslationProvider
 import br.com.mykytadu.translation.domain.exception.InvalidContentException
 import br.com.mykytadu.translation.domain.exception.TranslationProviderException
 import br.com.mykytadu.translation.domain.exception.TranslationProviderTimeoutException
+import br.com.mykytadu.translation.domain.model.CachedTranslation
 import br.com.mykytadu.translation.domain.model.ContentType
 import br.com.mykytadu.translation.domain.model.Language
 import br.com.mykytadu.translation.domain.service.ContentNormalizer
+import br.com.mykytadu.translation.domain.service.NormalizedContent
+import br.com.mykytadu.translation.domain.service.TranslationKeyGenerator
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import java.time.Clock
+import java.time.Duration
 
 @Service
-class TranslateContentUseCase(private val provider: TranslationProvider) : TranslationService {
+class TranslateContentUseCase(
+    private val provider: TranslationProvider,
+    private val cache: TranslationCache,
+    private val idGenerator: TranslationIdGenerator,
+    private val clock: Clock,
+) : TranslationService {
 
     override fun translate(command: TranslateContentCommand): TranslationOutcome {
         val normalized = try {
@@ -25,9 +37,37 @@ class TranslateContentUseCase(private val provider: TranslationProvider) : Trans
             return TranslationOutcome.InvalidContent(ex.message ?: "Invalid content")
         }
 
+        return processTranslation(command, normalized)
+    }
+
+    private fun processTranslation(
+        command: TranslateContentCommand,
+        normalized: NormalizedContent,
+    ): TranslationOutcome {
         val sourceLang = Language.fromCode(command.sourceLanguage)
         val targetLang = Language.fromCode(command.targetLanguage)
         val contentType = ContentType.fromValue(command.contentType)
+
+        val contentHash = TranslationKeyGenerator.generateKey(
+            normalizedText = normalized.normalizedText.value,
+            sourceLanguage = sourceLang,
+            targetLanguage = targetLang,
+            contentType = contentType,
+        )
+
+        val now = clock.instant()
+        val cached = cache.findValidTranslation(contentHash, targetLang, now)
+        if (cached != null) {
+            return TranslationOutcome.Success(
+                TranslatedContent(
+                    translation = cached.translation,
+                    sourceLanguage = cached.sourceLanguage.code,
+                    targetLanguage = cached.targetLanguage.code,
+                    contentType = cached.contentType.value,
+                    cached = true,
+                ),
+            )
+        }
 
         val providerCommand = ProviderTranslationCommand(
             text = normalized.normalizedText.value,
@@ -37,7 +77,7 @@ class TranslateContentUseCase(private val provider: TranslationProvider) : Trans
             format = normalized.format,
         )
 
-        return executeProviderTranslation(providerCommand, sourceLang, targetLang, contentType)
+        return executeProviderTranslation(providerCommand, sourceLang, targetLang, contentType, contentHash)
     }
 
     private fun executeProviderTranslation(
@@ -45,9 +85,26 @@ class TranslateContentUseCase(private val provider: TranslationProvider) : Trans
         sourceLanguage: Language,
         targetLanguage: Language,
         contentType: ContentType,
+        contentHash: String,
     ): TranslationOutcome = try {
         val providerResult = provider.translate(providerCommand)
         val resolvedSource = providerResult.detectedSourceLanguage ?: sourceLanguage
+        val now = clock.instant()
+
+        val cacheEntry = CachedTranslation(
+            id = idGenerator.nextId(),
+            contentHash = contentHash,
+            sourceLanguage = resolvedSource,
+            targetLanguage = targetLanguage,
+            contentType = contentType,
+            translation = providerResult.translatedText,
+            provider = providerResult.provider,
+            modelVersion = providerResult.modelVersion,
+            createdAt = now,
+            expiresAt = now.plus(RETENTION_DURATION),
+        )
+        cache.save(cacheEntry)
+
         val response = TranslatedContent(
             translation = providerResult.translatedText,
             sourceLanguage = resolvedSource.code,
@@ -66,5 +123,6 @@ class TranslateContentUseCase(private val provider: TranslationProvider) : Trans
 
     companion object {
         private val logger = LoggerFactory.getLogger(TranslateContentUseCase::class.java)
+        private val RETENTION_DURATION: Duration = Duration.ofDays(30)
     }
 }
