@@ -9,6 +9,7 @@ import br.com.mykytadu.translation.infrastructure.config.TranslationQuotaPropert
 import br.com.mykytadu.translation.infrastructure.fake.FakeTranslationProvider
 import br.com.mykytadu.translation.infrastructure.fake.InMemoryTranslationCache
 import br.com.mykytadu.translation.infrastructure.fake.InMemoryTranslationUsageTracker
+import br.com.mykytadu.translation.infrastructure.fake.NoopTranslationTelemetry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -25,6 +26,7 @@ class TranslateContentUseCaseTest {
     private val cache = InMemoryTranslationCache()
     private val usageTracker = InMemoryTranslationUsageTracker()
     private val quotaProperties = TranslationQuotaProperties(dailyCharactersLimit = 100, dailyRequestsLimit = 10)
+    private val telemetry = NoopTranslationTelemetry()
     private val fixedId = UUID.fromString("018d45f3-524c-7000-8000-000000000001")
     private val idGenerator = TranslationIdGenerator { fixedId }
     private var currentInstant: Instant = Instant.parse("2026-10-23T10:00:00Z")
@@ -39,6 +41,7 @@ class TranslateContentUseCaseTest {
         idGenerator = idGenerator,
         usageTracker = usageTracker,
         quotaProperties = quotaProperties,
+        telemetry = telemetry,
         clock = clock,
     )
 

@@ -8,6 +8,7 @@ import br.com.mykytadu.translation.application.port.ProviderTranslationCommand
 import br.com.mykytadu.translation.application.port.TranslationCache
 import br.com.mykytadu.translation.application.port.TranslationIdGenerator
 import br.com.mykytadu.translation.application.port.TranslationProvider
+import br.com.mykytadu.translation.application.port.TranslationTelemetry
 import br.com.mykytadu.translation.application.port.TranslationUsageTracker
 import br.com.mykytadu.translation.domain.exception.InvalidContentException
 import br.com.mykytadu.translation.domain.exception.TranslationProviderException
@@ -33,6 +34,7 @@ class TranslateContentUseCase(
     private val idGenerator: TranslationIdGenerator,
     private val usageTracker: TranslationUsageTracker,
     private val quotaProperties: TranslationQuotaProperties,
+    private val telemetry: TranslationTelemetry,
     private val clock: Clock,
 ) : TranslationService {
 
@@ -65,6 +67,7 @@ class TranslateContentUseCase(
         val now = clock.instant()
         val cached = cache.findValidTranslation(contentHash, targetLang, now)
         if (cached != null) {
+            telemetry.recordCacheHit()
             return TranslationOutcome.Success(
                 TranslatedContent(
                     translation = cached.translation,
@@ -75,6 +78,8 @@ class TranslateContentUseCase(
                 ),
             )
         }
+
+        telemetry.recordCacheMiss()
 
         if (command.userId != null) {
             val usageDate = now.atZone(ZoneOffset.UTC).toLocalDate()
@@ -122,44 +127,54 @@ class TranslateContentUseCase(
         contentHash: String,
         userId: UUID?,
         characterCount: Int,
-    ): TranslationOutcome = try {
-        val providerResult = provider.translate(providerCommand)
-        val resolvedSource = providerResult.detectedSourceLanguage ?: sourceLanguage
-        val now = clock.instant()
+    ): TranslationOutcome {
+        val startNanos = System.nanoTime()
+        return try {
+            val providerResult = provider.translate(providerCommand)
+            val duration = Duration.ofNanos(System.nanoTime() - startNanos)
+            telemetry.recordProviderCall(duration, success = true, provider = providerResult.provider)
+            telemetry.recordCharactersTranslated(characterCount)
+            val resolvedSource = providerResult.detectedSourceLanguage ?: sourceLanguage
+            val now = clock.instant()
 
-        val cacheEntry = CachedTranslation(
-            id = idGenerator.nextId(),
-            contentHash = contentHash,
-            sourceLanguage = resolvedSource,
-            targetLanguage = targetLanguage,
-            contentType = contentType,
-            translation = providerResult.translatedText,
-            provider = providerResult.provider,
-            modelVersion = providerResult.modelVersion,
-            createdAt = now,
-            expiresAt = now.plus(RETENTION_DURATION),
-        )
-        cache.save(cacheEntry)
+            val cacheEntry = CachedTranslation(
+                id = idGenerator.nextId(),
+                contentHash = contentHash,
+                sourceLanguage = resolvedSource,
+                targetLanguage = targetLanguage,
+                contentType = contentType,
+                translation = providerResult.translatedText,
+                provider = providerResult.provider,
+                modelVersion = providerResult.modelVersion,
+                createdAt = now,
+                expiresAt = now.plus(RETENTION_DURATION),
+            )
+            cache.save(cacheEntry)
 
-        if (userId != null) {
-            val usageDate = now.atZone(ZoneOffset.UTC).toLocalDate()
-            usageTracker.recordUsage(userId, usageDate, characterCount)
+            if (userId != null) {
+                val usageDate = now.atZone(ZoneOffset.UTC).toLocalDate()
+                usageTracker.recordUsage(userId, usageDate, characterCount)
+            }
+
+            val response = TranslatedContent(
+                translation = providerResult.translatedText,
+                sourceLanguage = resolvedSource.code,
+                targetLanguage = targetLanguage.code,
+                contentType = contentType.value,
+                cached = false,
+            )
+            TranslationOutcome.Success(response)
+        } catch (ex: TranslationProviderTimeoutException) {
+            val duration = Duration.ofNanos(System.nanoTime() - startNanos)
+            telemetry.recordProviderCall(duration, success = false, provider = "libretranslate")
+            logger.warn("Translation timed out: {}", ex.message)
+            TranslationOutcome.Timeout
+        } catch (ex: TranslationProviderException) {
+            val duration = Duration.ofNanos(System.nanoTime() - startNanos)
+            telemetry.recordProviderCall(duration, success = false, provider = "libretranslate")
+            logger.warn("Translation provider failed: {}", ex.message)
+            TranslationOutcome.ProviderFailed(ex.message)
         }
-
-        val response = TranslatedContent(
-            translation = providerResult.translatedText,
-            sourceLanguage = resolvedSource.code,
-            targetLanguage = targetLanguage.code,
-            contentType = contentType.value,
-            cached = false,
-        )
-        TranslationOutcome.Success(response)
-    } catch (ex: TranslationProviderTimeoutException) {
-        logger.warn("Translation timed out: {}", ex.message)
-        TranslationOutcome.Timeout
-    } catch (ex: TranslationProviderException) {
-        logger.warn("Translation provider failed: {}", ex.message)
-        TranslationOutcome.ProviderFailed(ex.message)
     }
 
     companion object {

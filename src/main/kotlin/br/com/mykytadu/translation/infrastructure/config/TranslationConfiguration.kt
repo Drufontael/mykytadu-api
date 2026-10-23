@@ -3,13 +3,17 @@ package br.com.mykytadu.translation.infrastructure.config
 import br.com.mykytadu.translation.application.port.TranslationCache
 import br.com.mykytadu.translation.application.port.TranslationIdGenerator
 import br.com.mykytadu.translation.application.port.TranslationProvider
+import br.com.mykytadu.translation.application.port.TranslationTelemetry
 import br.com.mykytadu.translation.application.port.TranslationUsageTracker
 import br.com.mykytadu.translation.infrastructure.client.LibreTranslateProviderAdapter
 import br.com.mykytadu.translation.infrastructure.client.TranslationProviderProperties
 import br.com.mykytadu.translation.infrastructure.fake.FakeTranslationProvider
 import br.com.mykytadu.translation.infrastructure.fake.InMemoryTranslationCache
 import br.com.mykytadu.translation.infrastructure.fake.InMemoryTranslationUsageTracker
+import br.com.mykytadu.translation.infrastructure.fake.NoopTranslationTelemetry
+import br.com.mykytadu.translation.infrastructure.observability.MicrometerTranslationTelemetry
 import br.com.mykytadu.translation.infrastructure.persistence.SecureTranslationIdGenerator
+import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -57,4 +61,15 @@ class TranslationConfiguration {
     @Bean
     @ConditionalOnMissingBean(TranslationUsageTracker::class)
     fun inMemoryTranslationUsageTracker(): TranslationUsageTracker = InMemoryTranslationUsageTracker()
+
+    @Bean
+    @ConditionalOnMissingBean(TranslationTelemetry::class)
+    fun translationTelemetry(meterRegistryProvider: ObjectProvider<MeterRegistry>): TranslationTelemetry {
+        val registry = meterRegistryProvider.ifAvailable
+        return if (registry != null) {
+            MicrometerTranslationTelemetry(registry)
+        } else {
+            NoopTranslationTelemetry()
+        }
+    }
 }
