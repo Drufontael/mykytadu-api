@@ -1,5 +1,6 @@
 package br.com.mykytadu.integration
 
+import br.com.mykytadu.translation.application.PurgeExpiredTranslationsUseCase
 import br.com.mykytadu.translation.application.port.TranslationCache
 import br.com.mykytadu.translation.domain.model.CachedTranslation
 import br.com.mykytadu.translation.domain.model.ContentType
@@ -19,7 +20,10 @@ import java.util.UUID
 @Testcontainers
 @SpringBootTest
 @ActiveProfiles("integration-test")
-class TranslationCacheIntegrationTests(@Autowired private val cache: TranslationCache) {
+class TranslationCacheIntegrationTests(
+    @Autowired private val cache: TranslationCache,
+    @Autowired private val purgeUseCase: PurgeExpiredTranslationsUseCase,
+) {
 
     @Test
     fun `persists translation, retrieves valid hit, and ignores expired entries`() {
@@ -76,7 +80,7 @@ class TranslationCacheIntegrationTests(@Autowired private val cache: Translation
         cache.save(oldEntry)
 
         val purgeTime = baseTime.plus(Duration.ofDays(31))
-        val deletedCount = cache.deleteExpiredBefore(purgeTime)
+        val deletedCount = purgeUseCase.purge(purgeTime)
         assertThat(deletedCount).isGreaterThanOrEqualTo(1)
 
         val afterPurge = cache.findValidTranslation(contentHash, Language.PT_BR, baseTime)
