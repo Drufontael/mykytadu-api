@@ -60,7 +60,7 @@ O roadmap apresenta apenas o estado consolidado. Histórico, evidências, bloque
 | B2.2 | **Concluída** | 2026-09-27 | 2026-09-29 | [Sessões, refresh e logout](sprints/B2.2.md) |
 | B2.3 | **Concluída** | 2026-10-17 | 2026-10-22 | [Recuperação de acesso e perfil](sprints/B2.3.md) |
 | B3.1 | **Concluída** | 2026-10-23 | 2026-10-23 | [Tradução funcional e adapter de fornecedor](sprints/B3.1.md) |
-| B3.2 | Não iniciada | — | — | a criar no planejamento da sprint |
+| B3.2 | **Em andamento** | 2026-10-23 | — | [Cache, quotas e resiliência](sprints/B3.2.md) |
 | B4.1 | Não iniciada | — | — | a criar no planejamento da sprint |
 | B4.2 | Não iniciada | — | — | a criar no planejamento da sprint |
 
