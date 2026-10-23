@@ -2,6 +2,7 @@ package br.com.mykytadu.translation.infrastructure.persistence
 
 import br.com.mykytadu.translation.application.port.TranslationIdGenerator
 import br.com.mykytadu.translation.application.port.TranslationUsageTracker
+import org.springframework.context.annotation.Profile
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import java.time.Clock
@@ -9,6 +10,7 @@ import java.time.LocalDate
 import java.util.UUID
 
 @Component
+@Profile("!test")
 internal class JpaTranslationUsageTracker(
     private val repository: SpringDataUsageDailyRepository,
     private val idGenerator: TranslationIdGenerator,

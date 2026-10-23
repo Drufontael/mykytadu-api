@@ -5,11 +5,13 @@ import br.com.mykytadu.translation.domain.model.CachedTranslation
 import br.com.mykytadu.translation.domain.model.ContentType
 import br.com.mykytadu.translation.domain.model.Language
 import org.slf4j.LoggerFactory
+import org.springframework.context.annotation.Profile
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 
 @Component
+@Profile("!test")
 internal class JpaTranslationCache(private val repository: SpringDataTranslationRepository) : TranslationCache {
 
     @Transactional(readOnly = true)
