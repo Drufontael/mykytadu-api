@@ -143,7 +143,8 @@ de versão ou exceção formal registrada.
 
 | Versão | Data | Estado | Mudança |
 |---|---|---|---|
-| `0.4.3` | 2026-09-28 | Atual | Explicitado `401 session_invalid` no refresh para conta inativa, sem novo código ou status HTTP; login após mudança de estado continua retornando falha genérica |
+| `1.0.0` | 2026-10-24 | Atual | **Congelamento do Contrato Mínimo para a Sprint 12 do KMP (Marco M4)**: Superfícies de Identity (cadastro, verificação, login, perfil, rotação de refresh e logout) e Translation (tradução com cache canônico, HTML seguro e quota com `Retry-After`) consolidadas; conformidade rigorosa com RFC 9457 e guia de integração de clientes publicado em `docs/api/guia-cliente-kmp.md` |
+| `0.4.3` | 2026-09-28 | Anterior | Explicitado `401 session_invalid` no refresh para conta inativa, sem novo código ou status HTTP; login após mudança de estado continua retornando falha genérica |
 | `0.4.2` | 2026-09-28 | Anterior | Restaurada a compatibilidade de `POST /auth/refresh` com `Idempotency-Key` opcional em `/api/v1`; sem header a rotação funciona, mas somente requisições com a mesma chave podem obter replay seguro após resposta de rede desconhecida |
 | `0.4.1` | 2026-09-28 | Anterior | Formalizados `POST /auth/logout` e `POST /auth/logout-all`: ambos exigem Bearer; Web associa cookie/CSRF/Origin e limpa cookie; logout atual afeta somente a família pertencente ao principal autenticado; logout-all revoga sessões renováveis da conta |
 | `0.4.0` | 2026-09-27 | Anterior | `Idempotency-Key` tornou-se obrigatório em `POST /auth/refresh` antes da ativação do endpoint, conforme ADR-019; clientes devem preservar a mesma chave durante retries da mesma rotação |
