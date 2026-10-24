@@ -61,7 +61,7 @@ O roadmap apresenta apenas o estado consolidado. Histórico, evidências, bloque
 | B2.3 | **Concluída** | 2026-10-17 | 2026-10-22 | [Recuperação de acesso e perfil](sprints/B2.3.md) |
 | B3.1 | **Concluída** | 2026-10-23 | 2026-10-23 | [Tradução funcional e adapter de fornecedor](sprints/B3.1.md) |
 | B3.2 | **Concluída** | 2026-10-23 | 2026-10-23 | [Cache, quotas e resiliência](sprints/B3.2.md) |
-| B4.1 | **Planejada** | — | — | [Staging e integração KMP](sprints/B4.1.md) |
+| B4.1 | **Em andamento** | 2026-10-24 | — | [Staging e integração KMP](sprints/B4.1.md) |
 | B4.2 | Não iniciada | — | — | a criar no planejamento da sprint |
 
 Fluxo padrão de estado:

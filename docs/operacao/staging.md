@@ -44,6 +44,9 @@ instâncias. Uma eventual extração física de módulo segue os critérios da
 | `MYKYTADU_REFRESH_PREVIOUS_KEY_BASE64` | não | segredo | chave HMAC anterior; deve acompanhar o `kid` anterior |
 | `MYKYTADU_IDENTITY_JWT_PREVIOUS_KEY_ID` | não | configuração | `kid` anterior mantido durante a janela de rotação |
 | `MYKYTADU_IDENTITY_JWT_PREVIOUS_PUBLIC_KEY_PEM` | não | sensível | chave pública anterior; deve acompanhar o `kid` anterior |
+| `MYKYTADU_TRANSLATION_PROVIDER_URL` | sim | sensível | URL do serviço privado do provedor LibreTranslate em staging |
+| `MYKYTADU_TRANSLATION_PROVIDER_API_KEY` | não | segredo | chave de API opcional caso o provedor privado exija autenticação |
+| `MYKYTADU_TRANSLATION_DAILY_CHARACTERS_LIMIT` | não | configuração | limite diário de caracteres para quota em staging (padrão 50000) |
 
 O banco deve ser não produtivo, isolado e possuir ownership separado nos
 schemas `identity` e `translation`. Não reutilizar credenciais, URLs, volumes,
@@ -106,10 +109,11 @@ $env:MYKYTADU_REFRESH_ACTIVE_KEY_BASE64 = "<chave-hmac-base64-injetada-pelo-secr
 Depois da execução, remover as variáveis sensíveis da sessão conforme a política
 do operador. Não registrar o comando com valores reais no histórico do shell.
 
-## 4. Limites desta sprint
+## 4. Blueprint declarativo (Render Blueprint)
 
-- nenhum serviço, banco, domínio ou secret remoto é provisionado nesta tarefa;
-- variáveis de e-mail, tradução e rate limit distribuído serão adicionadas
-  somente quando os respectivos adapters forem ativados;
-- deploy, TLS público, CORS remoto e teste ponta a ponta permanecem nas tarefas
-  responsáveis por staging e integração.
+A topologia de staging está declarada formalmente no arquivo [`render.yaml`](../../render.yaml) na raiz do repositório, especificando:
+- Serviço Web da API (`mykytadu-api-staging`) baseado na imagem OCI (`bootBuildImage`);
+- PostgreSQL gerenciado (`mykytadu-postgres-staging`) na mesma região (`oregon`);
+- Serviço privado LibreTranslate (`mykytadu-libretranslate-staging`) isolado da internet pública e acessível somente via rede interna (`hostport`);
+- Injeção protegida de segredos (`sync: false`) e placeholders configuráveis.
+

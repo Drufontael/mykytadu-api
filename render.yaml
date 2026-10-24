@@ -1,0 +1,68 @@
+services:
+  - type: web
+    name: mykytadu-api-staging
+    runtime: image
+    image:
+      url: mykytadu-api:latest
+    region: oregon
+    plan: starter
+    healthCheckPath: /actuator/health/readiness
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: staging
+      - key: MYKYTADU_DATABASE_URL
+        fromDatabase:
+          name: mykytadu-postgres-staging
+          property: connectionString
+      - key: MYKYTADU_DATABASE_USERNAME
+        fromDatabase:
+          name: mykytadu-postgres-staging
+          property: user
+      - key: MYKYTADU_DATABASE_PASSWORD
+        fromDatabase:
+          name: mykytadu-postgres-staging
+          property: password
+      - key: MYKYTADU_JWT_ISSUER
+        value: https://staging-api.mykytadu.com
+      - key: MYKYTADU_WEB_ALLOWED_ORIGINS
+        value: https://staging.mykytadu.com
+      - key: MYKYTADU_JWT_ACTIVE_KEY_ID
+        value: staging-key-1
+      - key: MYKYTADU_JWT_PRIVATE_KEY_PEM
+        sync: false
+      - key: MYKYTADU_JWT_PUBLIC_KEY_PEM
+        sync: false
+      - key: MYKYTADU_REFRESH_ACTIVE_KEY_ID
+        value: staging-refresh-1
+      - key: MYKYTADU_REFRESH_ACTIVE_KEY_BASE64
+        sync: false
+      - key: MYKYTADU_TRANSLATION_PROVIDER_URL
+        fromService:
+          type: pserv
+          name: mykytadu-libretranslate-staging
+          property: hostport
+      - key: MYKYTADU_TRANSLATION_PROVIDER_API_KEY
+        sync: false
+      - key: MYKYTADU_TRANSLATION_DAILY_CHARACTERS_LIMIT
+        value: "50000"
+
+  - type: pserv
+    name: mykytadu-libretranslate-staging
+    runtime: image
+    image:
+      url: libretranslate/libretranslate:v1.5.1
+    region: oregon
+    plan: starter
+    envVars:
+      - key: LT_DISABLE_WEB_UI
+        value: "true"
+      - key: LT_LOAD_ONLY
+        value: "en,pt"
+
+databases:
+  - name: mykytadu-postgres-staging
+    databaseName: mykytadu
+    user: mykytadu_app
+    region: oregon
+    plan: starter
+    postgresMajorVersion: "16"
