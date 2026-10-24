@@ -10,6 +10,7 @@ repositório; as skills apenas operacionalizam fluxos específicos.
 | --- | --- | --- |
 | Auditar estado, coerência, progresso, riscos ou prontidão | [`mykytadu-api-audit`](skills/mykytadu-api-audit/SKILL.md) | Somente leitura |
 | Validar, consolidar e publicar (git push) a branch da sprint | [`mykytadu-api-commit-publish`](skills/mykytadu-api-commit-publish/SKILL.md) | Valida e executa push na branch da sprint remota, mediante autorização explícita |
+| Sincronizar master local e excluir branch da sprint pós-merge | [`mykytadu-api-post-merge`](skills/mykytadu-api-post-merge/SKILL.md) | Retorna à master, faz pull, deleta com segurança a branch local mergeada e limpa referências podadas |
 | Construir decisões semânticas tipadas com TypeSafe | [`typesafe-ai`](skills/typesafe-ai/SKILL.md) | Orienta integrações com julgamentos `Choice`, `Score` e `Noul` |
 
 O fluxo de desenvolvimento autorizado possui autonomia para gerar commits locais atômicos na branch da sprint ativa para cada subtask validada. A publicação remota (`git push`), contudo, permanece protegida pela **trava no push** e requer autorização explícita do usuário ou invocação da skill de publicação.
