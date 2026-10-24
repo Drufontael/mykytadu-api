@@ -78,4 +78,25 @@ class TranslationPrivacyTest {
             .doesNotContain(translated)
             .contains("length=${translated.length}")
     }
+
+    @Test
+    fun `cached translation toString masks full text`() {
+        val translated = "Texto traduzido em cache"
+        val cached = br.com.mykytadu.translation.domain.model.CachedTranslation(
+            id = java.util.UUID.randomUUID(),
+            contentHash = "a".repeat(64),
+            sourceLanguage = Language.EN,
+            targetLanguage = Language.PT_BR,
+            contentType = ContentType.ANIME_DESCRIPTION,
+            translation = translated,
+            provider = "libretranslate",
+            modelVersion = "1.0",
+            createdAt = java.time.Instant.now(),
+            expiresAt = java.time.Instant.now().plus(java.time.Duration.ofDays(30)),
+        )
+
+        assertThat(cached.toString())
+            .doesNotContain(translated)
+            .contains("translationLength=${translated.length}")
+    }
 }
