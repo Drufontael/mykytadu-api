@@ -26,6 +26,7 @@ Em caso de divergência, não escolha silenciosamente uma fonte: corrija a incon
 - Em caso de conflito, preserve a regra mais restritiva e registre o bloqueio em vez de escolher silenciosamente uma interpretação.
 - Use `mykytadu-api-audit` para auditoria, revisão de progresso, coerência documental, riscos ou prontidão. Essa skill é somente leitura.
 - Use `mykytadu-api-commit-publish` para validar, consolidar e publicar (`git push`) a branch da sprint atual no remoto. A autorização para push não inclui pull request, merge, rebase ou force push.
+- Use `mykytadu-api-post-merge` para retornar à `master`, atualizar a branch local via pull e excluir com segurança a branch da sprint após o merge do PR no GitHub.
 - O agente possui autorização para criar commits locais atômicos na branch da sprint ativa para cada unidade ou subtask validada com sucesso, mantendo código, testes e documentação sincronizados.
 - A trava de segurança protege o repositório remoto: nunca realize `git push`, criação de pull request, merge na `master`, rebase ou force push sem autorização explícita do usuário.
 - Antes de usar uma skill, leia seu `SKILL.md` completo e os recursos que ele indicar. O índice das skills fica em `.agents/README.md`.

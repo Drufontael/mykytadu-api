@@ -1,11 +1,11 @@
 openapi: 3.1.0
 info:
   title: MykytaDu API
-  version: 0.4.3
+  version: 1.0.0
   description: |
-    Contrato HTTP inicial do MykytaDu API.
+    Contrato HTTP estável e congelado do MykytaDu API para a Sprint 12 do KMP (Marco M4).
 
-    Esta versão descreve as superfícies iniciais de Identity e Translation.
+    Esta versão consolida as superfícies de Identity e Translation.
     A API usa JSON em camelCase, IDs UUID como strings e datas ISO-8601 em
     UTC. O prefixo `/api/v1` faz parte da URL base do servidor.
   license:

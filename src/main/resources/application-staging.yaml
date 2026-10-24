@@ -11,7 +11,7 @@ spring:
     password: ${MYKYTADU_DATABASE_PASSWORD}
 
 server:
-  port: ${MYKYTADU_SERVER_PORT:8081}
+  port: ${PORT:${MYKYTADU_SERVER_PORT:8081}}
 
 mykytadu:
   identity:
@@ -19,3 +19,10 @@ mykytadu:
       allowed-web-origins: ${MYKYTADU_WEB_ALLOWED_ORIGINS}
     jwt:
       issuer: ${MYKYTADU_JWT_ISSUER}
+  translation:
+    provider:
+      url: ${MYKYTADU_TRANSLATION_PROVIDER_URL}
+      api-key: ${MYKYTADU_TRANSLATION_PROVIDER_API_KEY:}
+      mode: libretranslate
+    quota:
+      daily-characters-limit: ${MYKYTADU_TRANSLATION_DAILY_CHARACTERS_LIMIT:50000}
