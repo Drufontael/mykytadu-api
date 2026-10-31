@@ -62,7 +62,7 @@ O roadmap apresenta apenas o estado consolidado. Histórico, evidências, bloque
 | B3.1 | **Concluída** | 2026-10-23 | 2026-10-23 | [Tradução funcional e adapter de fornecedor](sprints/B3.1.md) |
 | B3.2 | **Concluída** | 2026-10-23 | 2026-10-23 | [Cache, quotas e resiliência](sprints/B3.2.md) |
 | B4.1 | **Concluída** | 2026-10-24 | 2026-10-24 | [Staging e integração KMP](sprints/B4.1.md) |
-| B4.2 | **Em andamento** | 2026-10-31 | — | [Preparação de produção](sprints/B4.2.md) |
+| B4.2 | **Concluída** | 2026-10-31 | 2026-10-31 | [Preparação de produção](sprints/B4.2.md) |
 
 Fluxo padrão de estado:
 
