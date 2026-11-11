@@ -79,11 +79,35 @@ Interromper a aplicação com `Ctrl+C`. Como o lifecycle local é `start-only`, 
 
 O profile `local` mantém o container em execução ao encerrar a aplicação (`start-only`). As variáveis opcionais `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER` e `POSTGRES_PASSWORD` permitem sobrescrever somente os valores locais. Não armazenar segredos de ambientes remotos nesses arquivos.
 
-No profile `local`, o adapter controlado de verificação aceita a solicitação
-sem enviar e-mail real e sem registrar endereço ou token. Sem configuração de
-ambiente, a entrega permanece indisponível por padrão e o cadastro responde
-com `email_delivery_unavailable`; um provedor remoto deve substituir esse
-adapter antes da exposição do fluxo fora de ambientes controlados.
+No profile `local`, o adapter controlado de e-mail aceita as solicitações sem
+enviar e-mails reais. Para facilitar o desenvolvimento e testes locais de API:
+
+- **Seed automático de usuário de teste (`LocalDatabaseSeeder`):** ao iniciar a
+  aplicação com o profile `local`, um usuário pré-ativado é automaticamente
+  criado se não existir no banco:
+  - **E-mail:** `dev@mykytadu.com`
+  - **Senha:** `Password123!` (Argon2id)
+  - **Display name:** `Desenvolvedor Local`
+  - **Roles:** `USER`, `ADMIN`
+  - **Status:** `ACTIVE` (e-mail já verificado)
+  Esse usuário permite autenticação imediata via `POST /api/v1/auth/login` sem
+  necessidade de passar previamente pelo fluxo de cadastro e verificação.
+- **Log de tokens de ação no terminal (`ControlledEmailSender`):** quando novos
+  tokens de verificação (`POST /api/v1/auth/verify-email`) ou de recuperação de
+  senha (`POST /api/v1/auth/password/reset`) são gerados em modo local, os
+  respectivos action tokens e exemplos de chamada POST são impressos diretamente
+  no log da aplicação com o prefixo `[LOCAL-DEV]`, dispensando consultas manuais
+  às tabelas do banco.
+
+Sem configuração de ambiente, a entrega de e-mails permanece indisponível por
+padrão e o cadastro responde com `email_delivery_unavailable`; um provedor remoto
+deve substituir esse adapter antes da exposição do fluxo fora de ambientes
+controlados.
+
+Todas as operações de data, quota e limites da aplicação são tratadas em UTC
+(`ZoneOffset.UTC`). Testes e consultas diretas devem considerar a virada do dia
+às 00:00 UTC (21:00 no horário de Brasília) para evitar divergências em janelas
+diárias.
 
 O profile `test` é ativado nos testes que não precisam de persistência. Testes de integração com banco usam `integration-test` e Testcontainers, sem reutilizar o banco local nem o estado de outra execução.
 
