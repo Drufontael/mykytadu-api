@@ -119,7 +119,7 @@ As superfícies públicas adicionais são declaradas como named interfaces do Sp
 | Módulo | Superfície pública | Regra |
 | --- | --- | --- |
 | `app` | composição e bootstrap; não oferece API de domínio | outros módulos não dependem de `app` |
-| `api` | pacote-base `br.com.mykytadu.api` para a borda comum | subpacotes de erro, segurança e observabilidade são internos ao módulo |
+| `api` | pacote-base `br.com.mykytadu.api` para a borda comum | subpacotes de erro, segurança, observabilidade e sincronização (`sync`) são internos ao módulo |
 | `identity` | `br.com.mykytadu.identity.api` (`identity :: api`) | credenciais, persistência, domínio e web permanecem internos |
 | `translation` | `br.com.mykytadu.translation.api` (`translation :: api`) | cache, fornecedor, persistência, domínio e web permanecem internos |
 | `shared` | tipos técnicos mínimos do pacote-base, quando necessários | não recebe regras de negócio nem dependências de outros módulos |
@@ -600,7 +600,8 @@ flowchart LR
 - validação sintática ocorre na borda; regras de negócio permanecem no domínio/aplicação;
 - `status` e `code` orientam o cliente; `detail` é humano e pode variar;
 - `traceId` correlaciona suporte sem expor detalhes internos;
-- autenticação é própria de primeira parte, não um servidor OAuth/OIDC completo.
+- autenticação é própria de primeira parte, não um servidor OAuth/OIDC completo;
+- sincronização em lote (`/api/v1/sync/library`) opera sob autenticação Bearer JWT, tratando mutações e reconciliação delta de biblioteca com clientes *local-first* (Sprint 13 KMP).
 
 ## 12. Segurança e fronteiras de confiança
 

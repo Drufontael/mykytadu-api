@@ -156,7 +156,85 @@ Content-Type: application/json
 
 ---
 
-## 5. Tratamento Padronizado de Erros (RFC 9457 Problem Details)
+## 5. Sincronização em Nuvem da Biblioteca (Sprint 13 KMP)
+
+O aplicativo KMP armazena a biblioteca de animes e o progresso do usuário sob o paradigma **local-first** (banco local Room/SQLDelight). O endpoint de sincronização permite a conciliação bidirecional em lotes entre o dispositivo e a nuvem.
+
+### 5.1. Protocolo de Sincronização (`POST /sync/library`)
+
+- **Autenticação:** Requer token Bearer JWT válido (`Authorization: Bearer <accessToken>`).
+- **Idempotência e Timestamp:** O cliente envia `lastSyncedAtEpochMillis` (nulo na primeira sincronização) e uma lista de mutações (`mutations`).
+- **Tipos de Mutação:**
+  - `UPSERT`: Criação ou atualização de um item da biblioteca (`payload` obrigatório).
+  - `DELETE`: Remoção do anime da biblioteca do usuário (`payload` nulo; usa `animeId`).
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Usuário
+    participant KMP as App KMP (Local-First)
+    participant API as MykytaDu API (/sync/library)
+
+    Note over KMP: Acumula mutações locais offline/online
+    KMP->>API: POST /api/v1/sync/library (Bearer JWT + Mutations + lastSyncedAt)
+    Note over API: Aplica mutações do usuário autenticado
+    Note over API: Filtra alterações do servidor posteriores a lastSyncedAt
+    API-->>KMP: 200 OK (syncedAt, appliedCount, serverChanges, deletedAnimeIds)
+    Note over KMP: Atualiza banco local e marca lastSyncedAtEpochMillis
+```
+
+### 5.2. Exemplo de Requisição de Sincronização
+
+```http
+POST /api/v1/sync/library
+Authorization: Bearer eyJhbGciOiJSUzI1Ni...
+Content-Type: application/json
+
+{
+  "lastSyncedAtEpochMillis": 1729000000000,
+  "mutations": [
+    {
+      "animeId": "16498",
+      "type": "UPSERT",
+      "payload": {
+        "animeId": "16498",
+        "status": "WATCHING",
+        "progressCurrent": 12,
+        "progressTotal": 24,
+        "isFavorite": true,
+        "rating": 9,
+        "notes": "Excelente adaptação",
+        "createdAtEpochMillis": 1728000000000,
+        "updatedAtEpochMillis": 1729050000000
+      },
+      "timestampEpochMillis": 1729050000000
+    },
+    {
+      "animeId": "99999",
+      "type": "DELETE",
+      "payload": null,
+      "timestampEpochMillis": 1729050000000
+    }
+  ]
+}
+```
+
+### 5.3. Resposta de Sucesso (200 OK)
+
+```json
+{
+  "syncedAtEpochMillis": 1729050010000,
+  "appliedCount": 2,
+  "serverChanges": [],
+  "deletedAnimeIds": []
+}
+```
+
+> **Nota de Implementação:** Nesta etapa de preparação para a Sprint 13 do KMP, o endpoint opera com armazenamento thread-safe em memória particionado por usuário autenticado (`ConcurrentHashMap`). A persistência relacional com schema PostgreSQL dedicado será formalizada via ADR na fase correspondente do roadmap.
+
+---
+
+## 6. Tratamento Padronizado de Erros (RFC 9457 Problem Details)
 
 Em qualquer falha HTTP (famílias 4xx e 5xx), a API responde impreterivelmente com o cabeçalho `Content-Type: application/problem+json`:
 
@@ -173,14 +251,14 @@ Em qualquer falha HTTP (famílias 4xx e 5xx), a API responde impreterivelmente c
 }
 ```
 
-### 5.1. Regra de Ouro para os Clientes KMP
+### 6.1. Regra de Ouro para os Clientes KMP
 
 > ⚠️ **NUNCA tome decisões no código com base no campo `detail` ou na mensagem de erro.**  
 > O campo `detail` é puramente informativo para humanos e pode variar. As decisões do cliente devem ser baseadas estritamente em:
 > 1. Código de Status HTTP (`status`): ex. `400`, `401`, `403`, `409`, `429`, `502`, `504`.
 > 2. Código de Erro Estável (`code`): ex. `translation_quota_exceeded`, `authentication_required`, `invalid_action_token`.
 
-### 5.2. Guia de Tratamento dos Principais Erros
+### 6.2. Guia de Tratamento dos Principais Erros
 
 | Status | Código (`code`) | Ação Recomendada no Cliente KMP |
 |---|---|---|
@@ -193,7 +271,7 @@ Em qualquer falha HTTP (famílias 4xx e 5xx), a API responde impreterivelmente c
 
 ---
 
-## 6. Checklist de Segurança para Release do App KMP
+## 7. Checklist de Segurança para Release do App KMP
 
 Antes de publicar o aplicativo Android, Desktop ou iOS:
 - [ ] O app utiliza URLs base parametrizadas por Build Variant / Configuração de Ambiente (Local vs Staging vs Produção).

@@ -27,6 +27,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer
 import java.sql.Timestamp
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 import java.util.UUID
 
@@ -142,7 +143,7 @@ internal class TranslationEndToEndIntegrationTests(
         val accessToken = loginSuccessfully(userEmail, "Password123!")
 
         // Inserir uso diário prévio próximo ao limite de 50.000 caracteres
-        val today = LocalDate.now()
+        val today = LocalDate.now(ZoneOffset.UTC)
         val now = Instant.now()
         jdbcTemplate.update(
             "INSERT INTO translation.usage_daily " +
