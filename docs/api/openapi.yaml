@@ -1,11 +1,12 @@
 openapi: 3.1.0
 info:
   title: MykytaDu API
-  version: 1.0.0
+  version: 1.1.0
   description: |
-    Contrato HTTP estável e congelado do MykytaDu API para a Sprint 12 do KMP (Marco M4).
+    Contrato HTTP do MykytaDu API para os clientes KMP e Web.
 
-    Esta versão consolida as superfícies de Identity e Translation.
+    Esta versão consolida as superfícies de Identity, Translation e
+    o endpoint aditivo de sincronização da biblioteca pessoal (Sync).
     A API usa JSON em camelCase, IDs UUID como strings e datas ISO-8601 em
     UTC. O prefixo `/api/v1` faz parte da URL base do servidor.
   license:
@@ -18,6 +19,8 @@ tags:
     description: Cadastro, autenticação, sessões e perfil
   - name: Translation
     description: Tradução de conteúdos textuais controlados
+  - name: Sync
+    description: Sincronização em nuvem da biblioteca e progresso do usuário
 paths:
   /auth/register:
     post:
@@ -546,6 +549,40 @@ paths:
         '500':
           $ref: '#/components/responses/InternalProblem'
 
+  /sync/library:
+    post:
+      tags: [Sync]
+      operationId: syncLibrary
+      summary: Sincronizar biblioteca de animes
+      description: |
+        Recebe um lote de mutações da biblioteca pessoal do usuário autenticado e
+        retorna as alterações do servidor posteriores ao timestamp informado (`lastSyncedAtEpochMillis`).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncBatchRequest'
+            examples:
+              default:
+                $ref: '#/components/examples/SyncBatchRequest'
+      responses:
+        '200':
+          description: Lote processado e sincronizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncBatchResponse'
+              examples:
+                default:
+                  $ref: '#/components/examples/SyncBatchResponse'
+        '401':
+          $ref: '#/components/responses/AuthenticationProblem'
+        '500':
+          $ref: '#/components/responses/InternalProblem'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1014,6 +1051,132 @@ components:
           description: Indica se a resposta veio de uma tradução válida em cache.
           example: true
 
+    SyncMutationType:
+      type: string
+      enum: [UPSERT, DELETE]
+      description: Tipo da mutação a ser aplicada no item da biblioteca.
+      example: UPSERT
+
+    LibraryEntrySync:
+      type: object
+      description: Entrada individual da biblioteca de animes do usuário.
+      required:
+        - animeId
+        - status
+        - progressCurrent
+        - isFavorite
+        - createdAtEpochMillis
+        - updatedAtEpochMillis
+      properties:
+        animeId:
+          type: string
+          description: Identificador único do anime no AniList.
+          example: '16498'
+        status:
+          type: string
+          description: Status de acompanhamento do anime (ex. WATCHING, COMPLETED, PLANNING).
+          example: WATCHING
+        progressCurrent:
+          type: integer
+          description: Episódio ou progresso atual do usuário.
+          minimum: 0
+          default: 0
+          example: 12
+        progressTotal:
+          type: [integer, 'null']
+          description: Total de episódios conhecido do anime.
+          example: 24
+        isFavorite:
+          type: boolean
+          description: Indica se o anime está marcado como favorito.
+          default: false
+          example: true
+        rating:
+          type: [integer, 'null']
+          description: Nota pessoal atribuída pelo usuário (1 a 10).
+          example: 9
+        notes:
+          type: [string, 'null']
+          description: Anotações pessoais do usuário.
+          example: Excelente adaptação
+        createdAtEpochMillis:
+          type: integer
+          format: int64
+          description: Timestamp de criação original no cliente em milissegundos UTC.
+          example: 1728000000000
+        updatedAtEpochMillis:
+          type: integer
+          format: int64
+          description: Timestamp da última atualização no cliente em milissegundos UTC.
+          example: 1729050000000
+
+    SyncMutation:
+      type: object
+      description: Operação atômica de sincronização sobre um item da biblioteca.
+      required:
+        - animeId
+        - type
+        - timestampEpochMillis
+      properties:
+        animeId:
+          type: string
+          description: Identificador do anime afetado.
+          example: '16498'
+        type:
+          $ref: '#/components/schemas/SyncMutationType'
+        payload:
+          $ref: '#/components/schemas/LibraryEntrySync'
+        timestampEpochMillis:
+          type: integer
+          format: int64
+          description: Timestamp do momento da mutação no cliente.
+          example: 1729050000000
+
+    SyncBatchRequest:
+      type: object
+      description: Lote de sincronização enviado pelo cliente KMP.
+      properties:
+        lastSyncedAtEpochMillis:
+          type: [integer, 'null']
+          format: int64
+          description: Timestamp da última sincronização com sucesso, ou nulo se for carga inicial.
+          example: 1729000000000
+        mutations:
+          type: array
+          description: Lista ordenada de mutações locais pendentes de envio à nuvem.
+          items:
+            $ref: '#/components/schemas/SyncMutation'
+
+    SyncBatchResponse:
+      type: object
+      description: Resultado da sincronização retornado pelo servidor.
+      required:
+        - syncedAtEpochMillis
+        - appliedCount
+        - serverChanges
+        - deletedAnimeIds
+      properties:
+        syncedAtEpochMillis:
+          type: integer
+          format: int64
+          description: Timestamp do servidor no momento do processamento em milissegundos UTC.
+          example: 1729050010000
+        appliedCount:
+          type: integer
+          description: Quantidade de mutações aplicadas com sucesso pelo servidor.
+          example: 1
+        serverChanges:
+          type: array
+          description: Entradas da biblioteca alteradas no servidor após o `lastSyncedAtEpochMillis` informado.
+          items:
+            $ref: '#/components/schemas/LibraryEntrySync'
+        deletedAnimeIds:
+          type: array
+          description: IDs de animes excluídos remotamente após `lastSyncedAtEpochMillis`.
+          items:
+            type: string
+          example: []
+
   responses:
     ValidationProblem:
       description: Corpo ausente, inválido ou com campos que não atendem às restrições
@@ -1400,3 +1563,27 @@ components:
         code: translation_provider_timeout
         traceId: 9aa5a7f7-9a4c-42ec-bbf1-7d2f4c616d5e
         errors: []
+    SyncBatchRequest:
+      value:
+        lastSyncedAtEpochMillis: 1729000000000
+        mutations:
+          - animeId: '16498'
+            type: UPSERT
+            payload:
+              animeId: '16498'
+              status: WATCHING
+              progressCurrent: 12
+              progressTotal: 24
+              isFavorite: true
+              rating: 9
+              notes: Excelente adaptação
+              createdAtEpochMillis: 1728000000000
+              updatedAtEpochMillis: 1729050000000
+            timestampEpochMillis: 1729050000000
+    SyncBatchResponse:
+      value:
+        syncedAtEpochMillis: 1729050010000
+        appliedCount: 1
+        serverChanges: []
+        deletedAnimeIds: []
+
