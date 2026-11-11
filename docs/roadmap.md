@@ -33,6 +33,7 @@ flowchart LR
     B2A --> B3
     B2B --> B4["B4 · Integração KMP"]
     B3 --> B4
+    B4 --> B5["B5 · Sincronização e DX"]
 ```
 
 | Marco | Resultado observável | Dependência |
@@ -43,6 +44,7 @@ flowchart LR
 | M2 — Identidade segura | jornada completa de conta e sessão funciona em integração | M1 |
 | M3 — Tradução controlada | tradução autenticada com cache, limites e adapter substituível | M1 e autenticação mínima de M2 |
 | M4 — Pronto para Sprint 12 KMP | staging e fluxos ponta a ponta validados | M0–M3 |
+| M5 — Sincronização e DX KMP | sincronização em nuvem da biblioteca, protocolo em lotes (Sprint 13 KMP) e DX local | M4 |
 
 ### 3.1 Acompanhamento das sprints
 
@@ -63,6 +65,7 @@ O roadmap apresenta apenas o estado consolidado. Histórico, evidências, bloque
 | B3.2 | **Concluída** | 2026-10-23 | 2026-10-23 | [Cache, quotas e resiliência](sprints/B3.2.md) |
 | B4.1 | **Concluída** | 2026-10-24 | 2026-10-24 | [Staging e integração KMP](sprints/B4.1.md) |
 | B4.2 | **Concluída** | 2026-10-31 | 2026-10-31 | [Preparação de produção](sprints/B4.2.md) |
+| B5.1 | **Em andamento** | 2026-11-11 | — | [Sincronização de biblioteca e DX](sprints/B5.1.md) |
 
 Fluxo padrão de estado:
 
@@ -341,6 +344,20 @@ flowchart LR
 
 **Saída da sprint:** release candidate com prontidão operacional verificável.
 
+### 5.14 Sprint B5.1 — Sincronização de biblioteca e DX
+
+**Objetivo:** viabilizar a experiência de desenvolvimento local (DX) e fornecer o contrato e o endpoint preliminar de sincronização em nuvem da biblioteca de animes para apoiar a Sprint 13 do aplicativo KMP.
+
+| ID | Tarefa | Restrições | Critérios de aceitação |
+| --- | --- | --- | --- |
+| B5.1-T1 | Implementar ferramentas de DX e seeder local | profile `local` exclusivo | usuário de teste semeado automaticamente com perfil pronto; action tokens impressos em log formatado |
+| B5.1-T2 | Especificar contrato OpenAPI 3.1 da sincronização | retrocompatível com v1.0.0 | endpoint `POST /sync/library` publicado no contrato OpenAPI v1.1.0 e aprovado pelo Redocly lint |
+| B5.1-T3 | Implementar controller e protocolo em lotes | autenticação Bearer JWT obrigatória | endpoint processa mutações UPSERT/DELETE, calcula delta de alterações do servidor e possui testes WebMvc |
+| B5.1-T4 | Padronizar datas em UTC e guiar integração KMP | manter consistência com RFC 9457 | testes de uso com fuso UTC determinístico; documentação no guia KMP e no changelog contratual |
+| B5.1-T5 | Validar gates estáticos, arquitetura e qualidade | manter mono-módulo e Modulith íntegros | ktlint, detekt, openApiLint e testes unitários/arquiteturais aprovados |
+
+**Saída da sprint:** endpoint de sincronização em nuvem utilizável para integração do cliente KMP (Sprint 13), DX local otimizada e contrato OpenAPI v1.1.0 consolidado.
+
 ## 6. Critérios de aceitação por marco
 
 | Marco | Critério de saída |
@@ -351,6 +368,7 @@ flowchart LR
 | M2 | jornadas completas de conta/sessão passam em PostgreSQL real; controles críticos de segurança revisados |
 | M3 | tradução autenticada tem adapter substituível, cache correto, limites, métricas e testes de falha |
 | M4 | KMP valida fluxos em staging; contrato mínimo está versionado; runbooks e rollback foram ensaiados |
+| M5 | sincronização em lote da biblioteca funcional sob Bearer JWT; contrato OpenAPI v1.1.0 publicado; DX local com seeder e logs de ação; integridade arquitetural do monólito |
 
 ## 7. Matriz resumida de riscos
 
